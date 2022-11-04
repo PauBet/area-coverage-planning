@@ -1,0 +1,38 @@
+function [x, y] = discretize(bbox, sizex, sizey, overlapx, overlapy)
+xmin = min(bbox(:,1));
+xmax = max(bbox(:,1));
+ymin = min(bbox(:,2));
+ymax = max(bbox(:,2));
+
+x = []; y = [];
+x = [xmin + sizex/2];
+y = [ymin + sizey/2];
+
+i = 2;
+step = sizex - overlapx;
+while(x(end) <= xmax - sizex/2 - step)
+    x = [x x(i-1) + step];
+    i = i + 1;
+end
+
+i = 2;
+step = sizey - overlapy;
+while (y(end) <= ymax - sizey/2 - step)
+    y = [y y(i-1) + step];
+    i = i + 1;
+end
+
+counter = 0;
+for i=1:length(x)
+    for j=1:length(y)
+        counter = counter + 1;
+        X(counter) = x(i);
+        Y(counter) = y(j);
+    end
+end
+
+in = inpolygon(X, Y, bbox(:,1), bbox(:,2));
+X = x(in ~= 0);
+%y = y(in ~= 0);
+
+end
