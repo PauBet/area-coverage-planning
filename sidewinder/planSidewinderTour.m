@@ -60,7 +60,7 @@ cside = closestSide(target, sc, t, roi);
 
 % The origin of the coverage path depends on the spacecraft ground track
 % position
-switch closestSide
+switch cside
     case {'up','down'} % Horizontal sweep
         if (sclon - sclon_) >= 0 
             bearing = false; % if the spacecraft is moving left (in the
@@ -91,7 +91,7 @@ switch closestSide
                 end
             end
             bearing = not(bearing); % Switch coverage direction after each 
-            % row sweeping, i.e. left (highest lon) to right (loleft lon) 
+            % row sweeping, i.e. left (highest lon) to right (lowest lon) 
             % or vice versa
         end
     case {'right','left'} % Vertical sweep
@@ -124,7 +124,7 @@ switch closestSide
                 end
             end
             bearing = not(bearing); % Switch coverage direction after each
-            % column sweeping, i.e. up (highest lat) to down (loleft
+            % column sweeping, i.e. up (highest lat) to down (lowest
             % lat) or vice versa
         end
 end
