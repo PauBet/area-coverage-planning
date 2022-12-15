@@ -1,66 +1,132 @@
-function fp = footprint(lon, lat, instName, targetName, scName, t, method, ax, fig, video)
-% [Description]
+function fp = footprint(lon, lat, t, inst, sc, target, theta)
+% Given the spacecraft trajectory, this function computes the FOV
+% projection onto the body surface, i.e. the footprint. The spacecraft
+% orientation is determined by the lon, lat and theta angles.
+% Assumption: the FOV is rectangular
+% Note: this function is contained in the framework of the automated
+% scheduler that optimizes the observation plan of a mission according to
+% a set of scientific objectives. The spacecraft is assumed to be 3-axis 
+% steerable and, therefore, CK kernels of the spacecraft (past missions)
+% are avoided.
+%
+% Programmers:  Paula Betriu (UPC/ESEIAAT)
+% Date:         10/2022
+%
+% Usage:        fp = footprint(lon, lat, t, inst, sc, target, theta)
+%
+% Inputs:
+%   > lon:      longitude coordinate of the target body at which the 
+%               instrument boresight is pointing, in [deg]
+%   > lat:      latitude coordinate of the target body at which the 
+%               instrument boresight is pointing, in [deg]
+%   > t:        time epoch in TDB seconds past J2000 epoch
+%   > inst:     string SPICE name of the instrument
+%   > sc:       string SPICE name of the spacecraft
+%   > target:   string SPICE name of the target body
+%   > theta:    roll angle of the instrument over its boresight axis, in
+%               [deg]
+%
+% Outputs:
+%   > fp:       struct containing main parameters of the footprint. In this
+%               case, only the field 'vertices' is necessary.
+%       # inst:          string SPICE name of the instrument
+%       # sc:            string SPICE name of the spacecraft
+%       # target:        string SPICE name of the target body
+%       # t:             time epoch in TDB seconds past J2000 epoch
+%       # bvertices:     matrix (N, 2) containing the N boundary vertices
+%                        of the footprint polygon, in latitudinal 
+%                        coordinates, in [deg].
+%               + fp may contain more than one polygon, split because the
+%                 actual footprint intersects the anti-meridian of the body
+%                 surface. In this case, the polygons are separated in
+%                 'vertices' by [NaN, NaN] Example:
+%                         area1 = [350 30; 360 30; 360  0; 350 0];
+%                         area2 = [ 0 30; 10 30; 10  0; 0  0];
+%                         area = [area1; [NaN NaN]; area2];
+%                         figure plot(polyshape(area(:,1), area(:,2));
+%       # olon:          longitude coordinate of the target body at which
+%                        the instrument boresight is pointing, in [deg]
+%       # olat:          latitude coordinate of the target body at which 
+%                        the instrument boresight is pointing, in [deg]
+%       # sizex:         footprint size in one direction, in [deg]
+%       # sizey:         footprint size in the other direction, in [deg]
+%       # fovbsight:     FOV boresight in the body-fixed reference frame
+%                        centered at the spacecraft position at time t
+%       # fovbounds:     FOV bounds in the body-fixed reference frame
+%                        centered at the spacecraft position at time t
+%       # poleIntercept: string that determines if the footprint intercepts
+%                        the north (='north pole') or south (='south pole')
+%                        poles.
+% 
+
+%% Print function (temp)
+fprintf('Calculating footprint at time %s...\n', cspice_et2utc(t, 'C', 0));
 
 %% Pre-allocate variables
-fp.bbox = []; % Minimum and maximum values of the latitude and longitude 
-% bounding the footprint
+fp.inst = inst;
+fp.sc = sc;
+fp.target = target;
+fp.t = t;
+fp.bvertices = []; % footprint boundary vertices, in latitudinal 
+% coordinates, in deg
+fp.olon = lon; % longitude value of FOV boresight projection onto the body 
+% surface, in [deg]
+fp.olat = lat; % latitude value of FOV boresight projection onto the body 
+% surface, in [deg]
+fp.sizex = 0; % horizontal size (longitude) [deg]
+fp.sizey = 0; % vertical size (latitude) [deg]
+fp.fovbsight = []; % FOV boresight in target frame centered at the 
+% spacecraft position
+fp.fovbounds = []; % FOV bounds in target frame centered at the spacecraft
+% position
+fp.poleIntercept = []; % determines if the footprint intercepts the north
+% pole (='north pole') or the south pole (='south pole')
 
-% Longitude and latitude values of the footprint origin (boresight
-% projection of the instrument onto the body surface)
-fp.olon = lon; 
-fp.olat = lat;
-
-% Horizontal (lon) and vertical (lat) size values of the footprint
-fp.sizex = 0; % longitude size [deg]
-fp.sizey = 0; % latitude size [deg]
-
-%% Parameters definition
+%% Parameters
+method = 'ELLIPSOID'; % assumption: ray intercept function is going to 
+% model the target body as a tri-axial ellipsoid
 lon = lon*cspice_rpd; % longitude from [deg] to [rad]
 lat = lat*cspice_rpd; % latitude from [deg] to [rad]
-[~, instFrame, boresight, bounds] = ...
-    cspice_getfov(cspice_bodn2c(instName), 4); % instrument FOV's boundary
+theta = theta*cspice_rpd; % yaw angle from [deg] to [rad]
+[~, ~, boresight, bounds] = ...
+    cspice_getfov(cspice_bodn2c(inst), 4); % instrument FOV's boundary
     % vectors in the instrument frame
-[~, targetFrame, ~] = cspice_cnmfrm(targetName); % target frame ID in SPICE
-abcorr = 'LT'; % one-way light time aberration correction parameter. 
+minx = min(bounds(1,:)); % minimum x focal plane
+maxx = max(bounds(1,:)); % maximum x focal plane
+miny = min(bounds(2,:)); % minimum y focal plane
+maxy = max(bounds(2,:)); % maximum y focal plane
+z = bounds(3,1); % z-coordinate of the boundary vectors
+[~, targetframe, ~] = cspice_cnmfrm(target); % target frame ID in SPICE
+abcorr = 'LT'; % one-way light time aberration correction parameter.
 % See cspice_spkpos for further information.
-N = 200; % footprint vertices resolution
+N = 100; % footprint vertices resolution
 
-%% Instrument pointing orientation change
-% Rectangular coordinates of the target point
-recPoint = cspice_srfrec(cspice_bodn2c(targetName), lon, lat);
-% Instrument (spacecraft) position
-instpos  = cspice_spkpos(scName, t, targetFrame, abcorr, targetName);
-% Distance vector to the target point from the instrument in the
-% targetFrame reference system
-v2 = recPoint - instpos;
-% Check if the point is visible as seen from the instrument, otherwise the
-% function is exited and the footprint is returned empty
-if dot(v2, recPoint) > 0
-    return;
+%% Instrument orientation calculation
+recpoint = cspice_srfrec(cspice_bodn2c(target), lon, lat); % rectangular
+% coordinates of the target point in the body-fixed reference frame
+instpos  = cspice_spkpos(sc, t, targetframe, abcorr, target); % rectangular
+% coordinates of the instrument in the body-fixed reference frame
+v2 = recpoint - instpos; % distance vector to the target point from the 
+% instrument in the body-fixed reference frame
+if dot(v2, recpoint) > 0
+    return; % check if the point is visible as seen from the instrument, 
+    % otherwise the function is exited and the footprint is returned empty
 end
-% Rotation matrix from target to instrument frames
-rotationMatrix = cspice_pxform(targetFrame, instFrame, t);
-% Distance vector to the target point from the instrument in the instFrame
-% reference system
-v2 = rotationMatrix*v2;
-% Rotation axis over which the instrument pointing has to be rotated, i.e.
-% the cross vector of the boresight (origin) vector and the final pointing
-% vector (v2)
-rotAxis = normalize(cross(boresight, v2), 'norm');
-% Phase that has to be rotated from one vector to the other
-angle = cspice_vsep(boresight, v2);
-% New rotation matrix that sets the new instrument pointing, i.e., towards
-% the target point [lon lat]
-pointingRotation = cspice_axisar(rotAxis, angle);
-% New FOV bounds orientation
+rotAxis = normalize(cross(v2, [0,0,1]'), 'norm'); % rotation axis over 
+% which the instrument pointing has to be rotated, i.e.
+% the cross vector of the body-fixed uz and the final pointing vector (v2)
+angle = cspice_vsep(v2, [0,0,1]'); % phase that has to be rotated from one
+% vector to the other
+pointingRotation = cspice_axisar(rotAxis, -angle); % first rotation matrix 
+rz = cspice_rotate(-theta, 3); % theta rotation (DOF)
+pointingRotation = pointingRotation*rz; % final rotation matrix
 for i=1:length(bounds)
     bounds(:,i) = pointingRotation*bounds(:,i); % instrument FOV's boundary
-    % vectors in the instrument frame (bounds)
+    % vectors in the target frame (bounds)
 end
+%[roll, pitch, yaw] = scorientation(pointingRotation, targetframe, t);
 
-%% FOV boundaries intersection with the body (footprint vertices)
-% In its simplest form, the footprint should have the same number of
-% vertices as boundaries has the instrument's FOV
+%% Field-of-view projection onto the target body
 boundPoints = zeros(3,length(bounds)); % intercept points of the FOV
 % boundary, in Cartesian coordinates, and in the body-fixed reference frame
 % In its simplest form, the footprint should have the same number of
@@ -69,183 +135,270 @@ irr = false; % boolean to define if the instrument FOV projection is not
 % enclosed in the body surface, i.e. at least one of the boundary vectors
 % do not intercept the body surface
 for i=1:length(bounds)
-    [boundPoints(:,i), ~, ~, found] = cspice_sincpt(method, targetName, t,...
-        targetFrame, abcorr, scName, instFrame, bounds(:,i));
+    [boundPoints(:,i), ~, ~, found] = cspice_sincpt(method, target, t,...
+        targetframe, abcorr, sc, targetframe, bounds(:, i));
     % If the FOV boundary does not intercept the target...
     if ~found
         irr = true;
+        fprintf('Limb intercept calculation...\n');
         break;
     end
 end
-
-surfPoints = [];
-count = 0;
+surfPoints = []; % matrix that saves the rectangular coordinates of the 
+% intercept points between the FOV perimeter and the body surface
+aminter = false; % anti-meridian intercept
+count = 0; % counter of found intercept points
 if irr
     % For those cases where the FOV does not completely contain the target,
     % a more refined search is going to be performed in order to define the
     % limits of the footprint
-    minx = min(bounds(1,:)); % minimum longitude value, in [rad]
-    maxx = max(bounds(1,:)); % maximum longitude value, in [rad]
-    miny = min(bounds(2,:)); % minimum latitude value, in [rad]
-    maxy = max(bounds(2,:)); % maximum latitude value, in [rad]
-    z = bounds(3,1); % z-coordinate of the boundary vectors
     for i=0:N
+        % Vertical sweep of the focal plane
         x = (maxx - minx)*i/N + minx;
         for j=0:N
             y = (maxy - miny)*j/N + miny;
             vec = [x, y, z]';
-            vec = pointingRotation*vec;
-            [aux, ~, ~, found] = cspice_sincpt(method,...
-                targetName, t, targetFrame, abcorr, scName,...
-                instFrame, vec);
-            if j == 0
-                old_found = found;
-                old_surfPoint = aux;
+            vec = pointingRotation*vec; % transform vector coordinates to
+            % target frame
+            corloc = 'SURFACE POINT'; % since alt is close to 0, there 
+            % should not be a significant difference between the target and 
+            % surface point correction locus (see cspice_tangpt)
+            found = false; % found intercept
+            [aux, alt, ~, ~, ~, ~] = cspice_tangpt(method, target, t,...
+                targetframe, abcorr, corloc, sc, targetframe, vec);
+            if alt < 10
+                % When the footprint contains the limb, its intercept is
+                % irregular, meaning that the boundary is not a smooth
+                % curve (the limb) but a set of scattered points with
+                % certain deviation around the limb. Besides this, since
+                % the research consists of a set of discretized points, we
+                % may not always find the limb intercept point. This
+                % depends on the resolution of the discretized refined
+                % mesh. To avoid incurring in excessive computational
+                % demands, instead of calculating the intercept point by
+                % refining the mesh, we calculate the tangent point. This
+                % is the closest surface point of the surface to the
+                % "intercepting" ray. When the ray actually intercepts the
+                % surface, the parameter 'alt', which is the distance
+                % between the tangent points and the surface, is equal to
+                % 0. We may find the limb "intercept" by finding those
+                % points where 'alt' is close or equal to 0.
+                % Future work: to be more precise.. try to minimize alt
+                % along the vertical sweep line
+                found = true;
             end
 
             if found && (y == miny || y == maxy || x == minx || x == maxx)
+                % if the vector intercepts the surface and is at the focal
+                % plane boundary...
                 count = count + 1;
-                surfPoints(:, count) = aux;
-            elseif found ~= old_found
+                surfPoints(count, :) = aux;
+            elseif j>0 && found ~= old_found
+                % if the vector intercept status changes from the previous
+                % one, we're sweeping across the object's limb
                 count = count + 1;
                 if old_found
-                    surfPoints(:,count) = old_surfPoint;
+                    surfPoints(count, :) = old_surfPoint; % save the
+                    % previous intercept
                 else
-                    surfPoints(:,count)  = aux;
+                    surfPoints(count, :) = aux; % save the current 
+                    % intercept
                 end
             end
-            old_found = found;
-            old_surfPoint = aux;
+
+            old_found = found; % save element intercept status
+            old_surfPoint = aux; % save element intercept point
         end
     end
 else
-    % The FOV projection is enclosed in the target surface so a linear
-    % interpolation approximation is performed in this case (more
-    % efficient)
+    %The FOV projection is enclosed in the target surface
     boundPoints(:, end+1) = boundPoints(:, 1); % close polygon
     for i=1:length(boundPoints)-1
-        % linear (approximation) interpolation between vertices to define 
+        % linear (approximation) interpolation between vertices to define
         % the boundary of the footprint
-        v = boundPoints(:, i+1) - boundPoints(:, i); % director vector
+        v = boundPoints(:, i+1) - boundPoints(:, i);
         lambda = linspace(0, 1, N); % line parametrization
         for l=1:N
             count = count + 1;
-            surfPoints(1, count) = boundPoints(1, i) + v(1)*lambda(l); % x
-            surfPoints(2, count) = boundPoints(2, i) + v(2)*lambda(l); % y
-            surfPoints(3, count) = boundPoints(3, i) + v(3)*lambda(l); % z
+            surfPoints(count, 1) = boundPoints(1, i) + v(1)*lambda(l); % x
+            surfPoints(count, 2) = boundPoints(2, i) + v(2)*lambda(l); % y
+            surfPoints(count, 3) = boundPoints(3, i) + v(3)*lambda(l); % z
         end
     end
 end
 
+if isempty(surfPoints), return; end % the FOV does not intercept with the
+% object at any point of its focal plane
+
+%% Conversion from rectangular to latitudinal coordinates of the polygon vertices
+vertices = zeros(length(surfPoints), 2); % matrix that saves the
+% latitudinal coordinates of the intercept points between the FOV
+% perimeter and the body surface
+[surfPoints(:,1), surfPoints(:,2), surfPoints(:,3)] = ...
+    sortcw(surfPoints(:,1), surfPoints(:,2), surfPoints(:,3)); % sort 
+    % polygon boundary vertices in clockwise order (for representation)
 for i=1:length(surfPoints)
-    [~, auxlon, auxlat] = cspice_reclat(surfPoints(:,i)); % rectangular
+    [~, auxlon, auxlat] = cspice_reclat(surfPoints(i,:)'); % rectangular
     % to latitudinal coordinates
-    aux(i,1) = auxlon*cspice_dpr(); % longitude in [deg]
-    aux(i,2) = auxlat*cspice_dpr(); % latitude in [deg]
+    vertices(i, 1) = auxlon*cspice_dpr(); % longitude in [deg]
+    vertices(i, 2) = auxlat*cspice_dpr(); % latitude in [deg]
 end
+% Future work: surfPoints does not need to be saved, we could convert
+% from rectangular to latitudinal inside the first loop, instead of
+% doing separately. The reason why it is not is because we need to sort
+% the vertices in clockwise order, and the sortcw algorithm for 2D does
+% not work with non-convex polygons...
 
-% When the footprint contains the limb, the footprint intercept is
-% irregular, meaning that the boundary is not a smooth curve (the limb) but
-% a set of scattered points with certain deviation around the limb.
-% As an approximate solution, the outer points are taken.
-k = boundary(aux(:,1), aux(:,2)); % most external points
-
-% Save footprint vertices
-fp.bbox(:,1) = aux(k,1);
-fp.bbox(:,2) = aux(k,2);
-
-%% temporal
-% if ~isempty(k)
-%     radii = cspice_bodvrd('VESTA','RADII',3);
-%     limb  = cspice_edlimb(radii(1), radii(2), radii(3), instpos);
-%     a = norm(limb.semiMajor);
-%     b = norm(limb.semiMinor);
-%     ellipse = @(x,y) x^2/a^2 + y^2/b^2 - 1;
-%     ecc = 1 - (b/a)^2;
-%     theta = 0:1:360;
-%     r = limb.center + limb.semiMajor*sind(theta) + limb.semiMinor*cosd(theta);
-%     [~, rlon, rlat] = cspice_reclat(r);
-%     
-%     k = boundary(fp.bbox(:,1), fp.bbox(:,2));
-%     figure
-%     scatter(fp.bbox(:,1),fp.bbox(:,2))
-%     hold on; box on;
-%     plot(fp.bbox(k,1), fp.bbox(k,2))
-%     scatter(rlon*cspice_dpr, rlat*cspice_dpr)
-% 
-%     figure
-%     plot3(r(1,:), r(2,:), r(3,:))
-% end
-
-%% FOV representation
-% This figure shows the FOV projection of the instrument over the target's
-% surface, modeled as a triaxial ellipsoid. If method is equal to
-% 'DSK', this option is disabled (for now, it could be considered
-% to represent the DEM model in the near future, although it is going
-% to be computationally demanding)
-
-if ~isequal(method,'DSK/UNPRIORITIZED') 
-    fig1 = figure;
-ax1 = axes;
-set(gcf,'units','normalized','OuterPosition',[0.0052,0.3139,0.4201,0.6532]);
-hold on; grid minor; axis equal; box on; grid on;
-set(gca,'Color','k','GridColor','w','MinorGridColor','w','XColor','k',...
-    'YColor','k','ZColor','k','FontSize',15)
-ax = gca;
-ax.XAxis.TickLabelColor = 'k';
-ax.YAxis.TickLabelColor = 'k';
-ax.ZAxis.TickLabelColor = 'k';
-xlabel('x [km]')
-ylabel('y [km]')
-zlabel('z [km]')
-title('Footprint projection')
-radii = cspice_bodvrd('VESTA','RADII',3);
-[xe, ye, ze] = ellipsoid(0,0,0,radii(1),radii(2),radii(3),100);
-surf(xe, ye, ze, 'FaceColor', [0.90 0.90 0.90], 'EdgeColor', [0.50 0.50 0.50])
-quiver3(0,0,0,1.5*radii(1),0,0,'c','linewidth',2)
-quiver3(0,0,0,0,1.5*radii(2),0,'g','linewidth',2)
-quiver3(0,0,0,0,0,1.5*radii(3),'r','linewidth',2)
-    instpos  = cspice_spkpos(scName, t, targetFrame, 'NONE', targetName);
-    rotationMatrix = cspice_pxform(instFrame, targetFrame, t);
-    bbounds = zeros(3, length(bounds));
-    for i=1:length(bounds)
-        rot = rotationMatrix*bounds(:,i);
-        bbounds(:,i) = normalize(rot, 'norm') + normalize(instpos,'norm');
-    end
-    pyramid_vertex = bbounds*norm(instpos);
-    pyramid_vertex(:,end+1) = instpos;
-
-    plot3(ax, instpos(1),instpos(2),instpos(3),'p','MarkerFaceColor',...
-        [255 146 4]/255, 'MarkerEdgeColor', [255 146 4]/255)
-    face= [2 3 5; 1 2 5; 3 4 5; 4 1 5];
-    p = patch(ax, 'Faces',face,'Vertices',pyramid_vertex','Facecolor',...
-        [0.66 0.85 0.41], 'FaceAlpha', 0.5);
-    hold on;
-    plot3(ax, surfPoints(1,:), surfPoints(2,:), surfPoints(3,:),...
-        '.b','MarkerSize',4)
-    view(ax, instpos)
-    drawnow
-    writeVideo(video, getframe(fig));
-    set(p,'visible','off')
-end
-
-%% Parameters
-fp.olon = lon;
-fp.olat = lat;
-maxlon = max(fp.bbox(:,1));
-minlon = min(fp.bbox(:,1));
-maxlat = max(fp.bbox(:,2));
-minlat = min(fp.bbox(:,2));
-
-mid = zeros(3,length(bounds));
+%% Check if the footprint contains north or south poles
+npoleint = 0; % north pole intercept (=1 if the north pole is inside the
+% instrument's FOV)
+spoleint = 0; % south pole intercept (=1 if the south pole is inside the
+% instrument's FOV)
+bbounds = zeros(3, length(bounds));
 for i=1:length(bounds)
-    if i~=length(bounds)
-        mid(:,i) = .5*(bounds(:,i) + bounds(:,i+1));
-    else
-        mid(:,i) = .5*(bounds(:,i) + bounds(:,1));
+    bbounds(:,i) = bounds(:,i) + instpos; % focal plane boundary points
+end
+p1 = bbounds(:,1);
+p2 = bbounds(:,2);
+p3 = bbounds(:,3);
+pnormal = normalize(cross(p1 - p2, p1 - p3), 'norm');
+plane = cspice_nvp2pl(pnormal, p1); % focal plane
+plinst = [maxx maxy;
+          maxx miny;
+          minx miny;
+          minx maxy];
+
+% North pole check
+rnpole = cspice_srfrec(cspice_bodn2c(target), 0, pi/2); % ray origin
+v1 = instpos - rnpole; % ray direction
+[spoint, ~, ~, found] = cspice_sincpt(method, target, t, targetframe,...
+    abcorr, sc, targetframe, -v1); % check if the north pole is visible as
+% seen from the instrument (the ray coming from the north pole could
+% intersect the focal plane but actually be in the dark side of the body as
+% seen from the spacecraft)
+if found && norm(spoint - rnpole) < 1
+    [int, pint] = cspice_inrypl(rnpole, v1, plane); % ray-plane intercept
+    if int
+        pint = pointingRotation\(pint - instpos); % intercept in the
+        % instrument frame coordinates
+        if inpolygon(pint(1), pint(2), plinst(:,1), plinst(:,2)) % find if 
+        % the intercept is contained in the focal plane boundaries
+            npoleint = 1;
+        end
     end
+    if npoleint; fp.poleIntercept = 'north pole'; end
 end
 
-fp.sizex = maxlon - minlon;
-fp.sizey = maxlat - minlat;
+% South pole check
+rspole = cspice_srfrec(cspice_bodn2c(target), 0, -pi/2);
+v2 = instpos - rspole;
+[spoint, ~, ~, found] = cspice_sincpt(method, target, t, targetframe,...
+    abcorr, sc, targetframe, -v2); % check if the south pole is visible as
+    % seen from the instrument 
+if found && norm(spoint - rspole) < 1
+    [int, pint] = cspice_inrypl(rspole, v2, plane); % ray-plane intercept
+    if int
+        pint = pointingRotation\(pint - instpos); % intercept in the
+        % instrument frame coordinates
+        if inpolygon(pint(1), pint(2), plinst(:,1), plinst(:,2)) % find if 
+        % the intercept is contained in the focal plane boundaries
+            spoleint = 1;
+        end
+    end
+    if spoleint; fp.poleIntercept = 'south pole'; end
+end
+
+%% Check if the footprint intersects the anti-meridian
+% To ease the footprint representation on the topography map, we must
+% consider the case where the footprint intercepts with the anti-meridian.
+% If it does, we split the footprint in two polygons, cleaved by the line
+% that the original footprint is crossing (a.m.)
+if find(diff(vertices(:,1)) >= 180), aminter = true; end % a.m. intercept
+if aminter && ~(spoleint || npoleint)
+    vertices = sortrows(vertices,1); % sort longitude values
+    ind = find(diff(vertices(:,1)) >= 180); % find the discontinuity index
+
+    % Add interpolated values at the anti-meridian to complete the polygons
+    seg1 = [vertices(1:ind, 1) vertices(1:ind, 2)];
+    m = sort(seg1(:,1));
+    ind1 = seg1(:,1) == m(1); ind2 = seg1(:,1) == m(2);
+    p1 = seg1(ind1, :); p2 = seg1(ind2, :);
+    x = linspace(p1(1), p2(1), 20);
+    y = linspace(p1(2), p2(2), 20);
+    seg1(end+1:end+length(x), :) = [x' y'];
+    
+    % Sort polygon vertices in clockwise order (since the 2D sorting
+    % algorithm does not work for concave polygons), let's use 3D...
+    % (inefficient, future work)
+    for i=1:length(seg1)
+        rectan(i, :) = cspice_srfrec(cspice_bodn2c(target), ...
+            seg1(i, 1)*cspice_rpd, seg1(i, 2)*cspice_rpd);
+    end
+    [a, b, c] = sortcw(rectan(:, 1), rectan(:, 2), rectan(:, 3));
+    for i=1:length(a)
+        [~, seg1(i, 1), seg1(i, 2)] = cspice_reclat([a(i), b(i), c(i)]');
+    end
+    seg1(:, 1) = seg1(:, 1)*cspice_dpr;
+    seg1(:, 2) = seg1(:, 2)*cspice_dpr;
+
+    % Add interpolated values at the anti-meridian to complete the polygons
+    seg2 = [vertices((ind + 1):size(vertices,1), 1) ...
+        vertices((ind + 1):size(vertices,1), 2)];
+    m = sort(seg2(:,1), 'descend');
+    ind1 = seg2(:,1) == m(1); ind2 = seg2(:,1) == m(2);
+    p1 = seg2(ind1, :); p2 = seg2(ind2, :);
+    x = linspace(p1(1), p2(1), 20);
+    y = linspace(p1(2), p2(2), 20);
+    seg2(end+1:end+length(x), :) = [x' y'];
+
+    % Sort polygon vertices in clockwise order (since the 2D sorting
+    % algorithm does not work for concave polygons), let's use 3D...
+    % (inefficient, future work)
+    for i=1:length(seg2)
+        rectan(i, :) = cspice_srfrec(cspice_bodn2c(target), ...
+            seg2(i, 1)*cspice_rpd, seg2(i, 2)*cspice_rpd);
+    end
+    [a, b, c] = sortcw(rectan(:, 1), rectan(:, 2), rectan(:, 3));
+    for i=1:length(a)
+        [~, seg2(i, 1), seg2(i, 2)] = cspice_reclat([a(i), b(i), c(i)]');
+    end
+    seg2(:, 1) = seg2(:, 1)*cspice_dpr;
+    seg2(:, 2) = seg2(:, 2)*cspice_dpr;
+
+    clear vertices;
+    vertices(1:length(seg1), :) = seg1;
+    vertices(length(seg1) + 1, :) = [NaN, NaN]; % save a NaN between 
+    % polygons to separate them
+    vertices((length(seg1) + 2):(length(seg1) + 1 + length(seg2)), 1) = ...
+        seg2(:, 1);
+    vertices((length(seg1) + 2):(length(seg1) + 1 + length(seg2)), 2) = ...
+        seg2(:, 2);
+end
+
+%% Save outputs
+% Save footprint vertices
+fp.bvertices(:,1) = vertices(:,1);
+fp.bvertices(:,2) = vertices(:,2);
+
+% Save fov parameters
+fp.fovbounds = bounds; % save fov bounds in the body-fixed reference frame
+fp.boresight = pointingRotation*boresight; % save fov boresight vector in
+% the body-fixed reference frame
+
+% Calculate and save footprint size
+if ~irr
+    [boundPoints(1,:), boundPoints(2,:), boundPoints(3,:)] = ...
+        sortcw(boundPoints(1,:), boundPoints(2,:), boundPoints(3,:));
+    
+    dirx = .5*(boundPoints(:,1) + boundPoints(:,2));
+    diry = .5*(boundPoints(:,2) + boundPoints(:,3));
+
+    fp.sizex = 2*cspice_vsep(recpoint, dirx)*cspice_dpr;
+    fp.sizey = 2*cspice_vsep(recpoint, diry)*cspice_dpr;
+else
+    bbox = smallestBoundingBox(fp.bvertices(:,1), fp.bvertices(:,2));
+    fp.sizex = bbox.size1;
+    fp.sizey = bbox.size2;
+end
+
 end
