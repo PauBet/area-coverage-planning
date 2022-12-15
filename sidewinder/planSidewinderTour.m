@@ -111,7 +111,7 @@ switch cside
             else
                 icol = i;
             end
-            for j=1:size(grid, 2)
+            for j=1:size(grid, 1)
                 if ~bearing
                     irow = j;
                 else

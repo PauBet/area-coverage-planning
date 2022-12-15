@@ -47,13 +47,13 @@ for i=2:length(vertices)
     edge = vertices(i, :) - vertices(i-1, :);
 
     % Compute edge orientation
-    angle = -atan2(edge(2), edge(1));
+    angle = atan2(edge(2), edge(1));
 
     % Compute rotation matrix to orient the convex hull with the main x-y
     % axis (this way it is easier to find the bounding box with the min and
     % max values of x/y)
-    rotmat = [cos(angle) -sin(angle);
-              sin(angle)  cos(angle)];
+    rotmat = [cos(angle) sin(angle);
+              -sin(angle)  cos(angle)];
     [cx, cy] = centroid(polyshape(vertices(:,1), vertices(:,2)));
     for j=1:length(vertices)
         rotVertices(j, :) = rotmat*(vertices(j, :)' - [cx, cy]');
@@ -95,7 +95,7 @@ for i=2:length(vertices)
         bbox.size1 = maxx - minx; bbox.size2 = maxy - miny;
 
         % Save angle
-        bbox.angle = rad2deg(angle);
+        bbox.angle = rad2deg(angle) + 90;
     end
 end
 
