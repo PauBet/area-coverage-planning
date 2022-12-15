@@ -29,7 +29,6 @@ function matrixGrid = grid2D(fpref, ovlapx, ovlapy, gamma, targetArea)
 %                   Each point is defined by the instrument boresight
 %                   projection onto the body surface, in latitudinal
 %                   coordinates [lon lat], in deg
-%
 
 % Get the footprint bounding box
 bbox  = smallestBoundingBox(fpref.bvertices(:, 1), fpref.bvertices(:, 2));
@@ -42,7 +41,7 @@ angle = deg2rad(bbox.angle);
 % with the meridian-equator axes is equivalent to filling the oriented
 % target area with an aligned footprint (angle = 0). Therefore, we rotate
 % the region-of-interest to orient it according to the footprint
-rotmat = [cos(angle) -sin(angle);
+rotmat = [cos(angle)   -sin(angle);
           sin(angle)  cos(angle)];
 [cx, cy] = centroid(polyshape(targetArea(:,1), targetArea(:,2)));
 orientedArea  = zeros(length(targetArea), 2);
@@ -53,7 +52,7 @@ end
 
 % Flood-fill algorithm to get the grid points of the oriented roi
 gridPoints = [];
-gridPoints = floodFillAlgorithm(fpref.size1, fpref.size2, ovlapx, ...
+gridPoints = floodFillAlgorithm(fpref.sizex, fpref.sizey, ovlapx, ...
     ovlapy, gamma, orientedArea, gridPoints, '4fill');
 
 % Temp figure
@@ -64,8 +63,8 @@ gridPoints = floodFillAlgorithm(fpref.size1, fpref.size2, ovlapx, ...
 % plot(gridPoints(:,1), gridPoints(:,2), 'b*')
 % orientedGridPoints = zeros(length(gridPoints), 2);
 % for j=1:length(gridPoints)
-%     orientedGridPoints(j, :) = transpose(rotmat)*gridPoints(j, :)' + ...
-%         [cx, cy]';
+%     orientedGridPoints(j, :) = [cx, cy]' +  transpose(rotmat)*...
+%         (gridPoints(j, :)' - [cx, cy]');
 % end
 % plot(orientedGridPoints(:,1), orientedGridPoints(:,2), 'r*')
 
