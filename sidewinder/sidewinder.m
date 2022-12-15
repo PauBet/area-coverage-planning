@@ -1,5 +1,5 @@
-function A = sidewinder(startTime, endTime, tobs, instName, scName, ...
-    targetName, vertices, olapx, olapy, method)
+function [A, coverage] = sidewinder(startTime, endTime, tobs, inst, sc, ...
+    target, roi, olapx, olapy, videosave)
 % Target-fixed Boustrophedon decomposition, adapted from [1].
 %
 % Programmers:  Paula Betriu (UPC/ESEIAAT)
@@ -15,24 +15,17 @@ function A = sidewinder(startTime, endTime, tobs, instName, scName, ...
 %                   J200 epoch
 %   > tobs:         observation time, i.e. the minimum time that the 
 %                   instrument needs to perform an observation, in seconds
-%   > instName:     string name of the instrument
-%   > scName:       string name of the spacecraft
-%   > targetName:   string name of the target body
-%   > vertices:     matrix containing the vertices of the ROI polygon. The
+%   > inst:         string name of the instrument
+%   > sc:           string name of the spacecraft
+%   > target:       string name of the target body
+%   > roi:          matrix containing the vertices of the ROI polygon. The
 %                   vertex points are expressed in 2D. 
-%       # vertices(:,1) correspond to the x values of the vertices
-%       # vertices(:,2) correspond to the y values of the vertices
+%       # roi(:,1) correspond to the x values of the vertices
+%       # roi(:,2) correspond to the y values of the vertices
 %   > olapx:        grid footprint overlap in the x direction (longitude),
 %                   in deg
 %   > olapy:        grid footprint overlap in the y direction (latitude),
 %                   in deg
-%   > method:       string defining the computation method needed for the
-%                   cspice_sincpt function. See cspice_sincpt function
-%                   description for more information
-%       Possible values:
-%       * 'ELLIPSOID' builds an ellipsoid to model the body surface
-%       * 'DSK/UNPRIORITIZED[/SURFACES = <surface list>]' uses topographic
-%       data to model the body surface
 % 
 % Outputs:
 %   > A:            cell matrix of the successive instrument observations,
@@ -48,44 +41,12 @@ function A = sidewinder(startTime, endTime, tobs, instName, scName, ...
 %%
 % Pre-allocate variables
 A = {}; % List of observations (successive boresight ground track position)
+theta = 0; % temppppppp
 
 % Define target area as a polygon
-x = vertices(:,1); y = vertices(:,2);
+x = roi(:,1); y = roi(:,2);
 poly1 = polyshape(x,y);
-
-%% Figure 1.
-% This figure shows the FOV projection of the instrument over the target's
-% surface, modeled as a triaxial ellipsoid. If method is equal to
-% 'DSK', this option is disabled (for now, it could be considered
-% to represent the DEM model in the near future, although it is going
-% to be computationally demanding)
-
-fig1 = figure;
-ax1 = axes;
-set(gcf,'units','normalized','OuterPosition',[0.0052,0.3139,0.4201,0.6532]);
-hold on; grid minor; axis equal; box on; grid on;
-set(gca,'Color','k','GridColor','w','MinorGridColor','w','XColor','k',...
-    'YColor','k','ZColor','k','FontSize',15)
-ax = gca;
-ax.XAxis.TickLabelColor = 'k';
-ax.YAxis.TickLabelColor = 'k';
-ax.ZAxis.TickLabelColor = 'k';
-xlabel('x [km]')
-ylabel('y [km]')
-zlabel('z [km]')
-title('Footprint projection')
-radii = cspice_bodvrd('VESTA','RADII',3);
-[xe, ye, ze] = ellipsoid(0,0,0,radii(1),radii(2),radii(3),100);
-surf(xe, ye, ze, 'FaceColor', [0.90 0.90 0.90], 'EdgeColor', [0.50 0.50 0.50])
-quiver3(0,0,0,1.5*radii(1),0,0,'c','linewidth',2)
-quiver3(0,0,0,0,1.5*radii(2),0,'g','linewidth',2)
-quiver3(0,0,0,0,0,1.5*radii(3),'r','linewidth',2)
-
-% animation figure 1
-v1 = VideoWriter('footprint_projection_sidewinder');
-v1.FrameRate = 2;
-open(v1);
-writeVideo(v1,getframe(fig1));
+roiarea = polysurfarea(roi, target); % surface area enclosed by the roi
 
 %% Figure 2.
 % This figure plots the FOV footprint in a 2D topography map of the target 
@@ -94,11 +55,11 @@ writeVideo(v1,getframe(fig1));
 ax2 = mapPlot('vesta-map.png');
 fig2 = gcf;
 set(gcf,'units','normalized','OuterPosition',[0.4307,0.3144,0.5656,0.6565]);
-plot(ax2, polyshape(vertices), 'FaceColor', [0.93,0.69,0.13])
+plot(ax2, polyshape(roi), 'FaceColor', [0.93,0.69,0.13])
 
 % Animation of figure 2
 v2 = VideoWriter('topography_map_sidewinder');
-v2.FrameRate = v1.FrameRate;
+v2.FrameRate = 2;
 open(v2);
 writeVideo(v2,getframe(fig2));
 
@@ -108,24 +69,24 @@ writeVideo(v2,getframe(fig2));
 t = startTime;
 
 % Compute spacecraft position in the body-fixed frame
-[~, targetFrame, ~] = cspice_cnmfrm(targetName); % body-fixed frame
-scPos = cspice_spkpos(scName, t, targetFrame, 'NONE', targetName);
+[~, targetFrame, ~] = cspice_cnmfrm(target); % body-fixed frame
+scPos = cspice_spkpos(sc, t, targetFrame, 'NONE', target);
 
-while ~iszero(vertices) && t < endTime
-    
-    % Closest polygon side to the spacecraft's ground track position
-    closestSide = getClosestSide(targetName, scName, t, vertices);
+% Boolean that defines when to stop covering the target area
+exit = false;
+
+while ~exit && t < endTime 
 
     % Initial 2D grid layout discretization: the instrument's FOV is going
     % to be projected onto the uncovered area's centroid and the resulting
     % footprint shape is used to set the grid spatial resolution
-    [gamma(1), gamma(2)] = centroid(polyshape(vertices(:,1),vertices(:,2)));
-    fprintc = footprint(gamma(1), gamma(2), instName, targetName,...
-        scName, t, method, ax1, fig1, v1);   % centroid footprint
+    [gamma(1), gamma(2)] = centroid(polyshape(roi(:,1),roi(:,2)));
+    fprintc = footprint(gamma(1), gamma(2), t, inst, sc, target, ...
+        theta);   % centroid footprint
 
     % Sorted list of grid points according to the sweeping/coverage path
     % (see Boustrophedon decomposition)
-    tour = planSidewinderTour(closestSide, vertices, fprintc, gamma,...
+    tour = planSidewinderTour(target, sc, t, roi, fprintc, gamma,...
         olapx, olapy);
 
     while ~isempty(tour)
@@ -134,15 +95,14 @@ while ~iszero(vertices) && t < endTime
         a = tour{1}; % observation
         tour(1) = []; % delete this observation from the planned tour
         A{end + 1} = a; % add it in the list of planned observations
-        fprinti = footprint(a(1), a(2), instName, targetName, scName, ...
-            t, method, ax1, fig1, v1); % compute the observation's footprint
-        if ~isempty(fprinti.bbox)
-            poly2 = polyshape(fprinti.bbox); % create footprint polygon
+        fprinti = footprint(a(1), a(2), t, inst, sc, target, ...
+            theta); % compute the observation's footprint
+
+        if ~isempty(fprinti.bvertices)
+            poly2 = polyshape(fprinti.bvertices); % create footprint polygon
             poly1 = subtract(poly1, poly2); % update uncovered area
-            vertices = poly1.Vertices;
 
             %% Plots
-
             % Footprint plot in Figure 2
             plot(ax2, poly2, 'FaceColor', [0.00,0.45,0.74])
             if length(A) > 1
@@ -151,17 +111,12 @@ while ~iszero(vertices) && t < endTime
             end
             drawnow
             
-            % Spacecraft position plot in Figure 1
-            if (t > startTime)
-                scPos(:,end+1)  = cspice_spkpos(scName, t, targetFrame,...
-                    'NONE', targetName);
-                plot3(ax1, scPos(1,end-1:end), scPos(2,end-1:end),...
-                    scPos(3,end-1:end),'Color', [255 146 4]/255)
-            end
+            % Figure showing the footprint projection onto the body surface
+            footprint3Dprojection(fprinti, videosave)
 
             % Spacecraft ground track position in Figure 2
-            sctrack = cspice_subpnt('INTERCEPT/ELLIPSOID', targetName,...
-                t, targetFrame, 'NONE', scName);
+            sctrack = cspice_subpnt('INTERCEPT/ELLIPSOID', target,...
+                t, targetFrame, 'NONE', sc);
             [~, sclon, sclat] = cspice_reclat(sctrack);
             plot(sclon*cspice_dpr, sclat*cspice_dpr, 'y^',...
                 'MarkerSize', 6)
@@ -172,10 +127,22 @@ while ~iszero(vertices) && t < endTime
             % New time iteration
             t = t + tobs;
             %t = t + tobs + slewDur(t, A{end}, A{end + 1}); % future work
+
+            % Save last footprint
+            lastfp = fprinti;
         end
     end
+    if polysurfarea(poly1.Vertices, target) < ...
+            .5*(polysurfarea(lastfp.bvertices, target))
+        exit = true;
+    else
+        roi = poly1.Vertices;
+    end
 end
+
+% ROI coverage percentage
+coverage = (roiarea - polysurfarea(poly1.Vertices, target))/roiarea;
+
 % End animations
-close(v1)
 close(v2)
 end
