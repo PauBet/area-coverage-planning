@@ -85,8 +85,8 @@ if inside
     % neighbors recursively
     if ~visited && areaInter/fpArea >= 0.2
         gridPoints(end+1,:) = gamma;
-        plot([gamma(1)-w/2, gamma(1)-w/2, gamma(1)+w/2, gamma(1) + w/2, gamma(1)-w/2],[gamma(2)+ h/2, gamma(2)- h/2, gamma(2)- h/2, gamma(2)+ h/2, gamma(2)+ h/2],'Color','g');
-        drawnow
+%         plot([gamma(1)-w/2, gamma(1)-w/2, gamma(1)+w/2, gamma(1) + w/2, gamma(1)-w/2],[gamma(2)+ h/2, gamma(2)- h/2, gamma(2)- h/2, gamma(2)+ h/2, gamma(2)+ h/2],'Color','g');
+%         drawnow
 
         gridPoints = floodFillAlgorithm(w, h, ovlapx, ovlapy, [gamma(1)-w+ovlapx,          gamma(2)], targetArea, gridPoints, method); % west
         gridPoints = floodFillAlgorithm(w, h, ovlapx, ovlapy, [gamma(1),          gamma(2)-h+ovlapy], targetArea, gridPoints, method); % south
