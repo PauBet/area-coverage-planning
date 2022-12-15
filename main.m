@@ -13,20 +13,8 @@ clc; close all; clear all;
 addpath(genpath(pwd));
 
 %%
-%mapPlot('vesta-map.png');
-
-% areapoints = [10 -10;
-%               10 -50;
-%               60 -60;
-%               60 -10];
-% 
-% areapoints = [10 -15;
-%               60 -15;
-%               60 0 ;
-%               10 0];
-
 areapoints = [10 -10;
-              10 -50;
+              10 -40;
               60 -60;
               60 -10;];
 
@@ -45,15 +33,18 @@ initSPICEv(fullK(METAKR));
 cspice_furnsh('C:\Users\roure\Desktop\science-optimizer\kernels\dsk\vesta512.bds')
 
 %%
-startTime = cspice_str2et('2011 SEP 30 2:00:00.000 TDB');
+startTime = cspice_str2et('2011 SEP 30 1:35:00.000 TDB');
 endTime   = cspice_str2et('2011 SEP 30 2:30:00.000 TDB');
-step = 60;
+step = 1;
 instName = 'DAWN_FC2';
 scName = 'DAWN';
 targetName = 'VESTA';
 method = 'ELLIPSOID';
-A = sidewinder(startTime, endTime, step, instName, scName, targetName,...
-vertices, 2, 2, method);
+[A, cv] = sidewinder(startTime, endTime, step, instName, scName, targetName,...
+vertices, 1, 1, 1);
+
+%%
+fprintf('Total coverage: %.3f%% \n', cv*100);
 %A = replanningSidewinder(startTime, endTime, step, instName, scName, targetName, vertices, 2, 2, method);
 %A = gridNibbler(startTime, endTime, step, instName, scName, targetName, vertices, method);
 
