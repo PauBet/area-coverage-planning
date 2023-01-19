@@ -88,7 +88,7 @@ method = 'ELLIPSOID'; % assumption: ray intercept function is going to
 lon = lon*cspice_rpd; % longitude from [deg] to [rad]
 lat = lat*cspice_rpd; % latitude from [deg] to [rad]
 theta = theta*cspice_rpd; % yaw angle from [deg] to [rad]
-[~, ~, boresight, bounds] = ...
+[~, ~, ~, bounds] = ...
     cspice_getfov(cspice_bodn2c(inst), 4); % instrument FOV's boundary
     % vectors in the instrument frame
 minx = min(bounds(1,:)); % minimum x focal plane
@@ -100,31 +100,19 @@ z = bounds(3,1); % z-coordinate of the boundary vectors
 abcorr = 'LT'; % one-way light time aberration correction parameter.
 % See cspice_spkpos for further information.
 N = 100; % footprint vertices resolution
-
-%% Instrument orientation calculation
 recpoint = cspice_srfrec(cspice_bodn2c(target), lon, lat); % rectangular
 % coordinates of the target point in the body-fixed reference frame
 instpos  = cspice_spkpos(sc, t, targetframe, abcorr, target); % rectangular
 % coordinates of the instrument in the body-fixed reference frame
-v2 = recpoint - instpos; % distance vector to the target point from the 
-% instrument in the body-fixed reference frame
-if dot(v2, recpoint) > 0
-    return; % check if the point is visible as seen from the instrument, 
-    % otherwise the function is exited and the footprint is returned empty
+
+% Calculate instrument fov bounds (when this is pointing at the target 
+% area)
+[bounds, boresight, pointingRotation, found] = instorient(inst, ...
+    target, lon, lat, sc, t, theta);
+if ~found
+    return; % the point is not visible from the instrument's FOV, therefore
+    % the function is exited and the footprint is returned empty
 end
-rotAxis = normalize(cross(v2, [0,0,1]'), 'norm'); % rotation axis over 
-% which the instrument pointing has to be rotated, i.e.
-% the cross vector of the body-fixed uz and the final pointing vector (v2)
-angle = cspice_vsep(v2, [0,0,1]'); % phase that has to be rotated from one
-% vector to the other
-pointingRotation = cspice_axisar(rotAxis, -angle); % first rotation matrix 
-rz = cspice_rotate(-theta, 3); % theta rotation (DOF)
-pointingRotation = pointingRotation*rz; % final rotation matrix
-for i=1:length(bounds)
-    bounds(:,i) = pointingRotation*bounds(:,i); % instrument FOV's boundary
-    % vectors in the target frame (bounds)
-end
-%[roll, pitch, yaw] = scorientation(pointingRotation, targetframe, t);
 
 %% Field-of-view projection onto the target body
 boundPoints = zeros(3,length(bounds)); % intercept points of the FOV
