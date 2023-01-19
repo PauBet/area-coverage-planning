@@ -1,4 +1,4 @@
-function gridPoints = floodFillAlgorithm(w, h, ovlapx, ovlapy, gamma,...
+function gridPoints = floodFillAlgorithm(w, h, olapx, olapy, gamma,...
     targetArea, gridPoints, method)
 % Flood-fill recursive algorithm that discretizes the target area by
 % "flooding" the region with 2D rectangular elements. The grid is 
@@ -16,9 +16,9 @@ function gridPoints = floodFillAlgorithm(w, h, ovlapx, ovlapy, gamma,...
 %   > h:            vertical resolution. Units are irrelevant as long as
 %                   they are consistent
 %   > ovlapx:       grid footprint overlap in the horizontal direction.
-%                   Units are irrelevant as long as they are consistent
+%                   Units are in percentage of width
 %   > ovlapy:       grid gootprint overlap in the vertical direction. Units
-%                   are irrelevant as long as they are consistent
+%                   are in percentage of height
 %   > gamma:        grid origin point
 %   > targetArea:   matrix containing the vertices of the ROI polygon. The
 %                   vertex points are expressed in 2D 
@@ -43,6 +43,8 @@ function gridPoints = floodFillAlgorithm(w, h, ovlapx, ovlapy, gamma,...
 % Variables pre-allocation
 inside = false;
 visited= false;
+ovlapx = olapx*w/100; ovlapy = olapy*h/100; % convert overlaps from 
+% percentage to degrees of latitude and longitude, respectively
 
 % Rectangular element definition
 fpx = [gamma(1) - w/2, gamma(1) - w/2, gamma(1) + w/2, gamma(1) + w/2];
@@ -88,15 +90,15 @@ if inside
 %         plot([gamma(1)-w/2, gamma(1)-w/2, gamma(1)+w/2, gamma(1) + w/2, gamma(1)-w/2],[gamma(2)+ h/2, gamma(2)- h/2, gamma(2)- h/2, gamma(2)+ h/2, gamma(2)+ h/2],'Color','g');
 %         drawnow
 
-        gridPoints = floodFillAlgorithm(w, h, ovlapx, ovlapy, [gamma(1)-w+ovlapx,          gamma(2)], targetArea, gridPoints, method); % west
-        gridPoints = floodFillAlgorithm(w, h, ovlapx, ovlapy, [gamma(1),          gamma(2)-h+ovlapy], targetArea, gridPoints, method); % south
-        gridPoints = floodFillAlgorithm(w, h, ovlapx, ovlapy, [gamma(1),          gamma(2)+h-ovlapy], targetArea, gridPoints, method); % north
-        gridPoints = floodFillAlgorithm(w, h, ovlapx, ovlapy, [gamma(1)+w-ovlapx,          gamma(2)], targetArea, gridPoints, method); % east
+        gridPoints = floodFillAlgorithm(w, h, olapx, olapy, [gamma(1)-w+ovlapx,          gamma(2)], targetArea, gridPoints, method); % west
+        gridPoints = floodFillAlgorithm(w, h, olapx, olapy, [gamma(1),          gamma(2)-h+ovlapy], targetArea, gridPoints, method); % south
+        gridPoints = floodFillAlgorithm(w, h, olapx, olapy, [gamma(1),          gamma(2)+h-ovlapy], targetArea, gridPoints, method); % north
+        gridPoints = floodFillAlgorithm(w, h, olapx, olapy, [gamma(1)+w-ovlapx,          gamma(2)], targetArea, gridPoints, method); % east
         if isequal(method,'8fill')
-            gridPoints = floodFillAlgorithm(w, h, ovlapx, ovlapy, [gamma(1)-w+ovlapx, gamma(2)+h-ovlapy], targetArea, gridPoints, method); % northwest
-            gridPoints = floodFillAlgorithm(w, h, ovlapx, ovlapy, [gamma(1)-w+ovlapx, gamma(2)-h+ovlapy], targetArea, gridPoints, method); % southwest
-            gridPoints = floodFillAlgorithm(w, h, ovlapx, ovlapy, [gamma(1)+w-ovlapx, gamma(2)+h-ovlapy], targetArea, gridPoints, method); % northeast
-            gridPoints = floodFillAlgorithm(w, h, ovlapx, ovlapy, [gamma(1)+w-ovlapx, gamma(2)-h+ovlapy], targetArea, gridPoints, method); % southeast
+            gridPoints = floodFillAlgorithm(w, h, olapx, olapy, [gamma(1)-w+ovlapx, gamma(2)+h-ovlapy], targetArea, gridPoints, method); % northwest
+            gridPoints = floodFillAlgorithm(w, h, olapx, olapy, [gamma(1)-w+ovlapx, gamma(2)-h+ovlapy], targetArea, gridPoints, method); % southwest
+            gridPoints = floodFillAlgorithm(w, h, olapx, olapy, [gamma(1)+w-ovlapx, gamma(2)+h-ovlapy], targetArea, gridPoints, method); % northeast
+            gridPoints = floodFillAlgorithm(w, h, olapx, olapy, [gamma(1)+w-ovlapx, gamma(2)-h+ovlapy], targetArea, gridPoints, method); % southeast
         end
     end
 end
