@@ -15,9 +15,9 @@ function matrixGrid = grid2D(fpref, ovlapx, ovlapy, gamma, targetArea)
 %      # sizey:     footprint size in the y direction (latitude), in deg
 %                   See function 'footprint' for further information.
 %   > olapx:        grid footprint overlap in the x direction (longitude),
-%                   in deg
+%                   in percentage
 %   > olapy:        grid footprint overlap in the y direction (latitude),
-%                   in deg
+%                   in percentage
 %   > targetArea:   matrix containing the vertices of the ROI polygon. The
 %                   vertex points are expressed in 2D. 
 %       # targetArea(:,1) correspond to the x values of the vertices
