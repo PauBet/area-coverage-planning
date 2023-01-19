@@ -21,9 +21,9 @@ function tour = planSidewinderTour(target, sc, t, roi, fprint0, ...
 %                   going to be used to define the grid discretization
 %   > gamma:        origin of the grid, in latitudinal coordinates, in deg
 %   > olapx:        grid footprint overlap in the x direction (longitude),
-%                   in deg
+%                   in percentage
 %   > olapy:        grid footprint overlap in the y direction (latitude),
-%                   in deg
+%                   in percentage
 % 
 % Outputs:
 %   > tour:         cell matrix of the successive planned observations.
