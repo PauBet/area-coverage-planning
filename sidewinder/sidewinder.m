@@ -23,9 +23,10 @@ function [A, coverage] = sidewinder(startTime, endTime, tobs, inst, sc, ...
 %       # roi(:,1) correspond to the x values of the vertices
 %       # roi(:,2) correspond to the y values of the vertices
 %   > olapx:        grid footprint overlap in the x direction (longitude),
-%                   in deg
+%                   in percentage (width)
 %   > olapy:        grid footprint overlap in the y direction (latitude),
-%                   in deg
+%                   in percentage (height)
+%   > videosave:
 % 
 % Outputs:
 %   > A:            cell matrix of the successive instrument observations,
@@ -39,6 +40,13 @@ function [A, coverage] = sidewinder(startTime, endTime, tobs, inst, sc, ...
 % steerable, 2D framing sensors.
 
 %%
+% Previous checks...
+[gamma(1), gamma(2)] = centroid(polyshape(roi(:,1),roi(:,2)));
+[bounds, boresight, pointingRotation] = instorient(inst, target, gamma(1), ...
+    gamma(2), sc, startTime, 0);
+
+in = roinfov(roi, target, sc, startTime, boresight);
+
 % Pre-allocate variables
 A = {}; % List of observations (successive boresight ground track position)
 theta = 0; % temppppppp
@@ -83,6 +91,15 @@ while ~exit && t < endTime
     [gamma(1), gamma(2)] = centroid(polyshape(roi(:,1),roi(:,2)));
     fprintc = footprint(gamma(1), gamma(2), t, inst, sc, target, ...
         theta);   % centroid footprint
+    if isempty(fprintc)
+        disp("Region of interest not visible from the instrument")
+        return; % the footprint is empty because the roi (in this case, 
+        % more specifically, the center point of the roi area) is not
+        % visible from the instrument FOV. Therefore, the function is
+        % exited. This may not be completely correct because the roi area
+        % could be large enough so that its centroid is not visible but any
+        % other region inside the area is. This is left for future work.
+    end
 
     % Sorted list of grid points according to the sweeping/coverage path
     % (see Boustrophedon decomposition)
@@ -132,6 +149,10 @@ while ~exit && t < endTime
             lastfp = fprinti;
         end
     end
+
+    % Stop criteria: if the surface of the remaining uncovered roi area is
+    % smaller than half of the last footprint size, then it is not worth it
+    % to start the tour (for the uncovered roi area) again
     if polysurfarea(poly1.Vertices, target) < ...
             .5*(polysurfarea(lastfp.bvertices, target))
         exit = true;
