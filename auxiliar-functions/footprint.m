@@ -108,7 +108,7 @@ instpos  = cspice_spkpos(sc, t, targetframe, abcorr, target); % rectangular
 % Calculate instrument fov bounds (when this is pointing at the target 
 % area)
 [bounds, boresight, pointingRotation, found] = instorient(inst, ...
-    target, lon, lat, sc, t, theta);
+    target, lon*cspice_dpr, lat*cspice_dpr, sc, t, theta);
 if ~found
     return; % the point is not visible from the instrument's FOV, therefore
     % the function is exited and the footprint is returned empty
