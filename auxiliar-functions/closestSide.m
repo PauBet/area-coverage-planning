@@ -46,9 +46,9 @@ for i=1:length(roi)
         minlondist = londist;
         if londist > 0
             if (sclon - bbox.maxlon) > 0
-                cside = 'left';
-            else
                 cside = 'right';
+            else
+                cside = 'left';
             end
         elseif londist < 0
             if (sclon - bbox.minlon) > 0

@@ -1,4 +1,5 @@
-function [gamma] = optimizeGridOrigin(gamma0, fp0, olapx, olapy, targetArea, dir)
+function [gamma] = optimizeGridOrigin(gamma0, fp0, olapx, olapy, ...
+    targetArea, dir, cside)
 %% Paula
 w = fp0.sizex;
 h = fp0.sizey;
@@ -7,19 +8,18 @@ deltax = 0.2*w/2;
 deltay = 0.2*h/2;
 
 %%
-counter = 0;
 gamma = gamma0;
 opt = false;
 delta = [0 0];
 while ~opt && abs(gamma(1) - gamma0(1)) <= w/2 && abs(gamma(2) - gamma0(2)) <= h/2
     gamma = gamma + delta;
-    grid = grid2D(fp0.sizex, fp0.sizey, olapx, olapy, gamma, targetArea);
+    grid = grid2D(fp0, olapx, olapy, gamma, targetArea);
 
     flag = 0;
     for i=1:size(grid,1)
         for j=1:size(grid,2)
             if ~isempty(grid{i,j})
-                if norm(grid{i,j} - gamma) < 1e-3
+                if norm(grid{i,j} - gamma') < 1e-3
                     ind = [i j];
                     flag = 1;
                     break;
@@ -32,34 +32,189 @@ while ~opt && abs(gamma(1) - gamma0(1)) <= w/2 && abs(gamma(2) - gamma0(2)) <= h
     end
 
     if exist('ind','var')
-        if xor(dir(1), dir(2))
-            if dir(1) > 0
-                if ind(2) > 1
-                    delta = deltax*[-1 0];
-                elseif ind(1) == 2
-                    delta = deltay*[0 1];
-                elseif ind(1) == (size(grid,1) -  1)
-                    delta = deltay*[0 -1];
+        switch cside
+            case 'down' % tour is moving downwards
+                if dir(2) == 0
+                    if dir(1) > 0 % tour is moving to the right
+                        if ind(1) > 1
+                            if ~isempty(grid(ind(1) - 1, ind(2)))
+                                delta = deltay*[0, 1];
+                            else
+                                opt = true;
+                            end
+                        end
+                        if ind(2) > 1
+                            if ~isempty(grid(ind(1), ind(2) - 1))
+                                delta = deltax*[0, -1];
+                            else
+                                opt = true;
+                            end
+                        end
+                    elseif dir(1) < 0 % tour is moving to the left
+                        if ind(1) > 1
+                            if ~isempty(grid(ind(1) - 1, ind(2)))
+                                delta = deltay*[0, 1];
+                            else
+                                opt = true;
+                            end
+                        end
+                        if ind(2) < size(grid, 2)
+                            if ~isempty(grid(ind(1), ind(2) + 1))
+                                delta = deltax*[0, 1];
+                            else
+                                opt = true;
+                            end
+                        end
+                    end
+                else % tour is moving down
+                    % problema!!!
+                    opt = true; % temporal!!!
+                end
+            case 'up' % tour is moving upwards
+                if dir(2) == 0
+                    if dir(1) > 0
+                        if ind(1) < size(grid, 1)
+                            if ~isempty(grid(ind(1) + 1, ind(2)))
+                                delta = deltay*[0, -1];
+                            else
+                                opt = true;
+                            end
+                        end
+                        if ind(2) > 1
+                            if ~isempty(grid(ind(1), ind(2) - 1))
+                                delta = deltax*[0, -1];
+                            else
+                                opt = true;
+                            end
+                        end
+                    elseif dir(1) < 0
+                        if ind(1) < size(grid, 1)
+                            if ~isempty(grid(ind(1) + 1, ind(2)))
+                                delta = deltay*[0, -1];
+                            else
+                                opt = true;
+                            end
+                        end
+                        if ind(2) < size(grid, 2)
+                            if ~isempty(grid(ind(1), ind(2) + 1))
+                                delta = deltax*[0, 1];
+                            else
+                                opt = true;
+                            end
+                        end
+                    end
                 else
-                    opt = true;
+                    % problema!!!
+                    opt = true; % temporal!!!
                 end
-            elseif dir(2) < 0
-                if ind(1) > 1
-                    delta = deltay*[0 1];
-                end
-            end
-        else
-            if dir(1) > 0 && dir(2) < 0
-                if ind(1) > 1
-                    delta = deltay*[0 1];
-                elseif ind(2) == 2
-                    delta = deltax*[-1 0];
-                %elseif ind(1) == (size(grid,1) - 1)
-                %    delta = delta + deltay*[0 -1];
+            case 'left'
+                if dir(1) == 0
+                    if dir(2) > 0
+                        if ind(2) < size(grid, 2)
+                            if ~isempty(grid(ind(1), ind(2) + 1))
+                                delta = deltax*[1, 0];
+                            else
+                                opt = true;
+                            end
+                        end
+                        if ind(1) < size(grid, 1)
+                            if ~isempty(grid(ind(1) + 1, ind(2)))
+                                delta = deltay*[-1, 0];
+                            else
+                                opt = true;
+                            end
+                        end
+                    elseif dir(2) < 0
+                        if ind(2) < size(grid, 2)
+                            if ~isempty(grid(ind(1), ind(2) + 1))
+                                delta = deltax*[1, 0];
+                            else
+                                opt = true;
+                            end
+                        end
+                        if ind(1) > 1
+                            if ~isempty(grid(ind(1) - 1, ind(2)))
+                                delta = deltay*[1, 0];
+                            else
+                                opt = true;
+                            end
+                        end
+                    end
                 else
-                    opt = true;
+                    % problema!!!
+                    opt = true; % temporal
                 end
-            end
+            case 'right'
+                if dir(1) == 0
+                    if dir(2) > 0
+                        if ind(2) > 1
+                            if ~isempty(grid(ind(1), ind(2) - 1))
+                                delta = deltax*[-1, 0];
+                            else
+                                opt = true;
+                            end
+                        end
+                        if ind(1) < size(grid, 1)
+                            if ~isempty(grid(ind(1) + 1, ind(2)))
+                                delta = deltay*[0, -1];
+                            else
+                                opt = true;
+                            end
+                        end
+                    elseif dir(2) < 0
+                        if ind(1) > 1
+                            if ~isempty(grid(ind(1) - 1, ind(2)))
+                                delta = deltay*[0, 1];
+                            else
+                                opt = true;
+                            end
+                        end
+                        if ind(2) > 1
+                            if ~isempty(grid(ind(1), ind(2) - 1))
+                                delta = deltax*[-1, 0];
+                            else
+                                opt = true;
+                            end
+                        end
+                    end
+                else
+                    % problema!!!
+                    opt = true; % temporal
+                end
+        end
+    else
+        opt = true;
+    end
+
+%     if exist('ind','var')
+%         if xor(dir(1), dir(2))
+%             if dir(1) > 0
+%                 if ind(2) > 1
+%                     delta = deltax*[-1 0];
+%                 elseif ind(1) == 2
+%                     delta = deltay*[0 1];
+%                 elseif ind(1) == (size(grid,1) -  1)
+%                     delta = deltay*[0 -1];
+%                 else
+%                     opt = true;
+%                 end
+%             elseif dir(2) < 0
+%                 if ind(1) > 1
+%                     delta = deltay*[0 1];
+%                 end
+%             end
+%         else
+%             if dir(1) > 0 && dir(2) < 0
+%                 if ind(1) > 1
+%                     delta = deltay*[0 1];
+%                 elseif ind(2) == 2
+%                     delta = deltax*[-1 0];
+%                 %elseif ind(1) == (size(grid,1) - 1)
+%                 %    delta = delta + deltay*[0 -1];
+%                 else
+%                     opt = true;
+%                 end
+%             end
 %             if dir(2) < 0 && abs(dir(1)) <= w
 %                 if ind(1) > 1
 %                     delta = delta + deltay*[0 1];
@@ -79,8 +234,7 @@ while ~opt && abs(gamma(1) - gamma0(1)) <= w/2 && abs(gamma(2) - gamma0(2)) <= h
 %                     opt = true;
 %                 end
 %             end
-        end
-    end
+end
 end
 
 %% Diego
@@ -172,5 +326,3 @@ end
 %             ok = 1;
 %         end    
 %     end    
-
-end

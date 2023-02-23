@@ -48,7 +48,7 @@ if ~counter
     [x, y, z] = ellipsoid(0, 0, 0, radii(1), radii(2), radii(3), 100);
 
     % Topography map of the target
-    image = strcat(lower(fp.target),'-map.jpeg');
+    image = strcat(lower(fp.target),'-map.png');
     % Load target image for texture map
     c_text = imread(image);
     % Print topography map

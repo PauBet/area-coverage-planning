@@ -84,6 +84,9 @@ for i=2:length(vertices)
             end
         end
         bbox.boundPoints(end+1, :) = bbox.boundPoints(1,:); % close polygon
+        [bbox.boundPoints(:,1), bbox.boundPoints(:,2)] = ...
+            sortcw(bbox.boundPoints(:,1), bbox.boundPoints(:,2)); % sort
+            % the vertices in clockwise direction
         
         % Save min/max longitude and latitude values
         bbox.maxlon = maxx;
@@ -95,7 +98,17 @@ for i=2:length(vertices)
         bbox.size1 = maxx - minx; bbox.size2 = maxy - miny;
 
         % Save angle
-        bbox.angle = rad2deg(angle) + 90;
+        if angle >= pi
+            angle = angle - pi;
+        elseif angle < 0
+            angle = angle + pi;
+        end
+        
+        % first quadrant
+        if angle > pi/2 && angle <= pi
+            angle = angle - pi/2;
+        end
+        bbox.angle = rad2deg(angle);
     end
 end
 

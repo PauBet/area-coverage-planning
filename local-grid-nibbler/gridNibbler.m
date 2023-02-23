@@ -63,8 +63,8 @@ scPos(:,end+1) = cspice_spkpos(scName, t, targetFrame, 'NONE', targetName);
 % Assumption: we choose to start in one of the target's area corners,
 % the one closest to the spacecraft's ground track position
 [gamma(1), gamma(2)] = centroid(polyshape(vertices(:,1),vertices(:,2)));
-fp0 = footprint(gamma(1), gamma(2), instName, targetName, scName, t, method, [], [], []);
-map = grid2D(fp0.sizex, fp0.sizey, fp0.overlapx, fp0.overlapy, gamma, vertices);
+fp0 = footprint(gamma(1), gamma(2), t, instName,  scName, targetName, 0); 
+map = grid2D(fp0, 0, 0, gamma, vertices);
 best = closestTargetCorner(targetName, scName, t, map);
 
 %% Local Grid Nibbler

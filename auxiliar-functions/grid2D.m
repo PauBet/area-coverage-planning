@@ -15,9 +15,9 @@ function matrixGrid = grid2D(fpref, ovlapx, ovlapy, gamma, targetArea)
 %      # sizey:     footprint size in the y direction (latitude), in deg
 %                   See function 'footprint' for further information.
 %   > olapx:        grid footprint overlap in the x direction (longitude),
-%                   in deg
+%                   in percentage
 %   > olapy:        grid footprint overlap in the y direction (latitude),
-%                   in deg
+%                   in percentage
 %   > targetArea:   matrix containing the vertices of the ROI polygon. The
 %                   vertex points are expressed in 2D. 
 %       # targetArea(:,1) correspond to the x values of the vertices
@@ -42,13 +42,14 @@ angle = deg2rad(bbox.angle);
 % target area with an aligned footprint (angle = 0). Therefore, we rotate
 % the region-of-interest to orient it according to the footprint
 rotmat = [cos(angle)   -sin(angle);
-          sin(angle)  cos(angle)];
+          sin(angle)   cos(angle)];
 [cx, cy] = centroid(polyshape(targetArea(:,1), targetArea(:,2)));
 orientedArea  = zeros(length(targetArea), 2);
 for j=1:length(targetArea)
     orientedArea(j, :) = [cx, cy]' + rotmat*(targetArea(j, :)' - ...
         [cx, cy]');
 end
+gamma = [cx, cy]' + rotmat*(gamma' - [cx, cy]');
 
 % Flood-fill algorithm to get the grid points of the oriented roi
 gridPoints = [];
@@ -106,5 +107,6 @@ for i=1:length(uniqueLat)
             % orientation
     end
 end
+%matrixGrid = rot90(matrixGrid, 3);
 
 end

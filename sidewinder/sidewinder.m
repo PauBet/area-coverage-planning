@@ -23,9 +23,10 @@ function [A, coverage] = sidewinder(startTime, endTime, tobs, inst, sc, ...
 %       # roi(:,1) correspond to the x values of the vertices
 %       # roi(:,2) correspond to the y values of the vertices
 %   > olapx:        grid footprint overlap in the x direction (longitude),
-%                   in deg
+%                   in percentage (width)
 %   > olapy:        grid footprint overlap in the y direction (latitude),
-%                   in deg
+%                   in percentage (height)
+%   > videosave:
 % 
 % Outputs:
 %   > A:            cell matrix of the successive instrument observations,
@@ -41,7 +42,8 @@ function [A, coverage] = sidewinder(startTime, endTime, tobs, inst, sc, ...
 %%
 % Pre-allocate variables
 A = {}; % List of observations (successive boresight ground track position)
-theta = 0; % temppppppp
+theta = -20; % temppppppp
+[~, targetFrame, ~] = cspice_cnmfrm(target); % body-fixed frame
 
 % Define target area as a polygon
 x = roi(:,1); y = roi(:,2);
@@ -68,10 +70,6 @@ writeVideo(v2,getframe(fig2));
 % The first time iteration is the starting time in the planning horizon
 t = startTime;
 
-% Compute spacecraft position in the body-fixed frame
-[~, targetFrame, ~] = cspice_cnmfrm(target); % body-fixed frame
-scPos = cspice_spkpos(sc, t, targetFrame, 'NONE', target);
-
 % Boolean that defines when to stop covering the target area
 exit = false;
 
@@ -83,11 +81,24 @@ while ~exit && t < endTime
     [gamma(1), gamma(2)] = centroid(polyshape(roi(:,1),roi(:,2)));
     fprintc = footprint(gamma(1), gamma(2), t, inst, sc, target, ...
         theta);   % centroid footprint
+    if isempty(fprintc)
+        disp("Region of interest not visible from the instrument")
+        return; % the footprint is empty because the roi (in this case, 
+        % more specifically, the center point of the roi area) is not
+        % visible from the instrument FOV. Therefore, the function is
+        % exited. This may not be completely correct because the roi area
+        % could be large enough so that its centroid is not visible but any
+        % other region inside the area is. This is left for future work.
+    end
+
+    % Closest polygon side to the spacecraft's ground track position (this
+    % will determine the coverage path in planSidewinderTour)
+    cside = closestSide(target, sc, t, roi);
 
     % Sorted list of grid points according to the sweeping/coverage path
     % (see Boustrophedon decomposition)
     tour = planSidewinderTour(target, sc, t, roi, fprintc, gamma,...
-        olapx, olapy);
+        olapx, olapy, cside);
 
     while ~isempty(tour)
         % Compute the footprint of each point in the tour successively and
@@ -132,6 +143,10 @@ while ~exit && t < endTime
             lastfp = fprinti;
         end
     end
+
+    % Stop criteria: if the surface of the remaining uncovered roi area is
+    % smaller than half of the last footprint size, then it is not worth it
+    % to start the tour (for the uncovered roi area) again
     if polysurfarea(poly1.Vertices, target) < ...
             .5*(polysurfarea(lastfp.bvertices, target))
         exit = true;
