@@ -7,10 +7,10 @@ if isempty(openList)
     %[openList(:,1), openList(:,2)] = discretize(bbox, sizex, sizey, overlapx, overlapy);
 end
 s = openList; % seeds: initial open list
-openList = cell2mat(openList');
+%openList = cell2mat(openList');
 while ~isempty(openList)
-    o = openList(1,:);
-    openList(1,:) = [];
+    o = openList{1};
+    openList(1) = [];
     membershipChanged = false;
     inside = false;
     if inpolygon(o(1), o(2), vertices(:,1), vertices(:,2))
@@ -56,24 +56,26 @@ while ~isempty(openList)
                 end
             end
         end
-        n = getNeighbors(indrow, indcol, map);
-        in1 = false; in2 = false;
-        for i=1:length(n)
-            for j=1:length(cin)
-                if isequal(cin{j}, n{i})
-                    in1 = true;
-                    break;
+        if exist('indrow', 'var') && exist('indcol', 'var')
+            n = getNeighbors(indrow, indcol, map);
+            in1 = false; in2 = false;
+            for i=1:length(n)
+                for j=1:length(cin)
+                    if isequal(cin{j}, n{i})
+                        in1 = true;
+                        break;
+                    end
                 end
-            end
-            for j=1:length(cout)
-                if isequal(cout{j}, n{i})
-                    in2 = true;
-                    break;
+                for j=1:length(cout)
+                    if isequal(cout{j}, n{i})
+                        in2 = true;
+                        break;
+                    end
                 end
-            end
-            %if xor(~in1, ~in2)
-            if ~in1 && ~in2
-                openList(end+1, :) = cell2mat(n(i));
+                %if xor(~in1, ~in2)
+                if ~in1 && ~in2
+                    openList{end+1} = n{i};
+                end
             end
         end
     end
