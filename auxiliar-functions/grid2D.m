@@ -42,13 +42,14 @@ angle = deg2rad(bbox.angle);
 % target area with an aligned footprint (angle = 0). Therefore, we rotate
 % the region-of-interest to orient it according to the footprint
 rotmat = [cos(angle)   -sin(angle);
-          sin(angle)  cos(angle)];
+          sin(angle)   cos(angle)];
 [cx, cy] = centroid(polyshape(targetArea(:,1), targetArea(:,2)));
 orientedArea  = zeros(length(targetArea), 2);
 for j=1:length(targetArea)
     orientedArea(j, :) = [cx, cy]' + rotmat*(targetArea(j, :)' - ...
         [cx, cy]');
 end
+gamma = [cx, cy]' + rotmat*(gamma' - [cx, cy]');
 
 % Flood-fill algorithm to get the grid points of the oriented roi
 gridPoints = [];
@@ -106,5 +107,6 @@ for i=1:length(uniqueLat)
             % orientation
     end
 end
+%matrixGrid = rot90(matrixGrid, 3);
 
 end
