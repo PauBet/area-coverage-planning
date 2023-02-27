@@ -4,10 +4,12 @@ function best = checkNeighbors(gamma, map, center)
 %%
 for i=1:size(map,1)
     for j=1:size(map,2)
-        if norm(map{i,j} - gamma) < 1e-5
-            indrow = i;
-            indcol = j;
-            break;
+        if ~isempty(map{i,j})
+            if norm(map{i,j} - gamma) < 1e-5
+                indrow = i;
+                indcol = j;
+                break;
+            end
         end
     end
 end

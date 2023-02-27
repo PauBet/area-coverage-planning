@@ -33,21 +33,21 @@ initSPICEv(fullK(METAKR));
 %cspice_furnsh('/Users/paulabetriu/Desktop/science-optimizer/kernels/dsk/vesta512.bds')
 
 %%
-startTime = cspice_str2et('2011 SEP 30 1:48:00.000 TDB');
+startTime = cspice_str2et('2011 SEP 30 1:47:00.000 TDB');
 endTime   = cspice_str2et('2011 SEP 30 2:30:00.000 TDB');
 step = 1;
 instName = 'DAWN_FC2';
 scName = 'DAWN';
 targetName = 'VESTA';
 method = 'ELLIPSOID';
-[A, cv] = sidewinder(startTime, endTime, step, instName, ...
-    scName, targetName, vertices, 0, 0, 1);
+%[A, cv] = sidewinder(startTime, endTime, step, instName, ...
+%    scName, targetName, vertices, 20, 20, 1);
 
 %%
 %fprintf('Total coverage: %.3f%% \n', cv*100);
 %[A, cv] = replanningSidewinder(startTime, endTime, step, instName, ...
-%    scName, targetName, vertices, 0, 0, method);
-A = gridNibbler(startTime, endTime, step, instName, scName, targetName, vertices, method);
+%    scName, targetName, vertices, 20, 20, method);
+A = gridNibbler(startTime, endTime, step, instName, scName, targetName, vertices, 20, 20, 1);
 
 %%
 endSPICE;
