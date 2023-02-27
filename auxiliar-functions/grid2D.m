@@ -107,6 +107,5 @@ for i=1:length(uniqueLat)
             % orientation
     end
 end
-%matrixGrid = rot90(matrixGrid, 3);
 
 end
