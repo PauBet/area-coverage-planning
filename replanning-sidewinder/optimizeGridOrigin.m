@@ -1,20 +1,70 @@
-function [gamma] = optimizeGridOrigin(gamma0, fp0, olapx, olapy, ...
-    targetArea, dir, cside)
-%% Paula
-w = fp0.sizex;
-h = fp0.sizey;
+function [grid, gamma] = optimizeGridOrigin(gamma0, fp0, olapx, olapy, ...
+    roi, dir, cside)
+% This function optimizes the grid origin of an uncovered ROI area. The
+% grid origin is the next tile in the tour that is going to be observed.
+% Sometimes, within the replanning Sidewinder algorithm, the allocated cell
+% for the previous observation was bigger than the actual footprint
+% size... therefore, some part of the allocated cell was actually not
+% covered and was left for the next observation. If the
+% aforementioned uncovered area is significant, the algorithm is going to
+% re-program that observation (at the same spot), a.k.a. taboo tile,
+% possibly triggering a grid lock. This function intends to prevent that by
+% shifting the grid backwards so the next observation may cover (partially
+% or totally) the previously uncovered area, but not completely going
+% backwards (to the point where the next and previous observations are
+% equal)
+%
+% Programmers:  Paula Betriu (UPC/ESEIAAT)
+% Date:         09/2022
+% 
+% Usage:        tour = planSidewinderTour(closestSide, roi, fprint0, gamma)
+%
+% Inputs:
+%   > gamma0:       origin of the grid, in latitudinal coordinates, in deg
+%   > fprint0:      struct containing the footprint parameters that are
+%                   going to be used to define the grid discretization
+%   > olapx:        grid footprint overlap in the x direction (longitude),
+%                   in percentage
+%   > olapy:        grid footprint overlap in the y direction (latitude),
+%                   in percentage
+%   > roi:          matrix containing the roi of the ROI polygon. The
+%                   vertex points are expressed in 2D. 
+%       # roi(:,1) correspond to the x values of the roi
+%       # roi(:,2) correspond to the y values of the roi
+%   > dir:          boolean variable that states in which direction is the
+%                   coverage path currently touring the grid
+%   > cside:        given a region-of-interest, this function defines what 
+%                   is the spacecraft ground track position with respect to
+%                   the edges of the target area. See closestSide function
+% 
+% Outputs:
+%   > grid:         Flood-fill grid discretization of the 
+%                   region-of-interest given a reference footprint(fprint0)
+%
 
-deltax = 0.2*w/2;
-deltay = 0.2*h/2;
+% Variables
+gamma = gamma0; % grid origin (seed), i.e., next planned observation in the
+% tour
+opt = false; % boolean that states if the grid is optimal -i.e., no taboo 
+% tiles- (opt = true) or not (opt = false)
+delta = [0 0]; % array that defines the displacement of the grid
+deltax = 0.1*fp0.sizex; % displacement value in the x direction
+deltay = 0.1*fp0.sizey; % displacement value in the y direction
 
-%%
-gamma = gamma0;
-opt = false;
-delta = [0 0];
-while ~opt && abs(gamma(1) - gamma0(1)) <= w/2 && abs(gamma(2) - gamma0(2)) <= h/2
+% if the grid is not optimal nor the displacement value has not reached its
+% maximum yet...
+while ~opt && abs(gamma(1) - gamma0(1)) <= fp0.sizex/2 && ...
+        abs(gamma(2) - gamma0(2)) <= fp0.sizey/2
+
+    % Discretize the non-covered roi space (flood-fill), seeded with gamma
     gamma = gamma + delta;
-    grid = grid2D(fp0, olapx, olapy, gamma, targetArea);
+    [grid, dirx, diry] = grid2D(fp0, olapx, olapy, gamma, roi);
 
+    % The grid shifting may go in both directions (dirx and diry) and, 
+    % in that case, is accumulative
+    delta = [0 0];
+    
+    % Find which position does gamma occupy in this grid
     flag = 0;
     for i=1:size(grid,1)
         for j=1:size(grid,2)
@@ -31,298 +81,84 @@ while ~opt && abs(gamma(1) - gamma0(1)) <= w/2 && abs(gamma(2) - gamma0(2)) <= h
         end
     end
 
-    if exist('ind','var')
+    if exist('ind', 'var')
         switch cside
-            case 'down' % tour is moving downwards
-                if dir(2) == 0
-                    if dir(1) > 0 % tour is moving to the right
-                        if ind(1) > 1
-                            if ~isempty(grid(ind(1) - 1, ind(2)))
-                                delta = deltay*[0, 1];
-                            else
-                                opt = true;
-                            end
-                        end
-                        if ind(2) > 1
-                            if ~isempty(grid(ind(1), ind(2) - 1))
-                                delta = deltax*[0, -1];
-                            else
-                                opt = true;
-                            end
-                        end
-                    elseif dir(1) < 0 % tour is moving to the left
-                        if ind(1) > 1
-                            if ~isempty(grid(ind(1) - 1, ind(2)))
-                                delta = deltay*[0, 1];
-                            else
-                                opt = true;
-                            end
-                        end
-                        if ind(2) < size(grid, 2)
-                            if ~isempty(grid(ind(1), ind(2) + 1))
-                                delta = deltax*[0, 1];
-                            else
-                                opt = true;
-                            end
+            case {'up', 'down'} % horizontal sweep
+
+                if isequal(cside, 'down') % spacecraft is towards roi's
+                    % bottom
+                    if ind(1) > 1 % if gamma is not in the first row of the
+                        % grid, move the grid upwards
+                        if sum(cellfun(@any, grid(ind(1) - 1, 1:ind(2))))
+                            delta = delta + deltay*diry;
                         end
                     end
-                else % tour is moving down
-                    % problema!!!
-                    opt = true; % temporal!!!
+                else % spacecraft is towards roi's top
+                    if ind(1) < size(grid, 1) % if gamma is not in the
+                        % last row of the grid, move the grid downwards
+                        if sum(cellfun(@any, grid(ind(1) + 1, 1:ind(2))))
+                            delta = delta - deltay*diry;
+                        end
+                    end
                 end
-            case 'up' % tour is moving upwards
-                if dir(2) == 0
-                    if dir(1) > 0
-                        if ind(1) < size(grid, 1)
-                            if ~isempty(grid(ind(1) + 1, ind(2)))
-                                delta = deltay*[0, -1];
-                            else
-                                opt = true;
-                            end
+
+                if dir % tour is moving to the right (left -> right dir.)
+                    if ind(2) > 1 % if gamma is not in the first column of
+                        % the grid, move the grid leftwards
+                        if sum(cellfun(@any, grid(1:ind(1), ind(2) - 1)))
+                            delta = delta - deltax*dirx;
                         end
-                        if ind(2) > 1
-                            if ~isempty(grid(ind(1), ind(2) - 1))
-                                delta = deltax*[0, -1];
-                            else
-                                opt = true;
-                            end
+                    end
+                else % tour is moving to the left (right -> left dir.)
+                    if ind(2) < size(grid, 2) % if gamma is not in the last
+                        % column of the grid, move the grid rightwards
+                        if sum(cellfun(@any, grid(1:ind(1), ind(2) + 1)))
+                            delta = delta + deltax*dirx;
                         end
-                    elseif dir(1) < 0
-                        if ind(1) < size(grid, 1)
-                            if ~isempty(grid(ind(1) + 1, ind(2)))
-                                delta = deltay*[0, -1];
-                            else
-                                opt = true;
-                            end
-                        end
-                        if ind(2) < size(grid, 2)
-                            if ~isempty(grid(ind(1), ind(2) + 1))
-                                delta = deltax*[0, 1];
-                            else
-                                opt = true;
-                            end
+                    end
+                end
+
+            case {'right', 'left'} % vertical sweep
+
+                if isequal(cside, 'right')
+                    if ind(2) > 1 % if gamma is not in the first column of
+                        % the grid, move the grid leftwards
+                        if sum(cellfun(@any, grid(1:ind(1), ind(2) - 1)))
+                            delta = delta - deltax*dirx;
                         end
                     end
                 else
-                    % problema!!!
-                    opt = true; % temporal!!!
-                end
-            case 'left'
-                if dir(1) == 0
-                    if dir(2) > 0
-                        if ind(2) < size(grid, 2)
-                            if ~isempty(grid(ind(1), ind(2) + 1))
-                                delta = deltax*[1, 0];
-                            else
-                                opt = true;
-                            end
-                        end
-                        if ind(1) < size(grid, 1)
-                            if ~isempty(grid(ind(1) + 1, ind(2)))
-                                delta = deltay*[-1, 0];
-                            else
-                                opt = true;
-                            end
-                        end
-                    elseif dir(2) < 0
-                        if ind(2) < size(grid, 2)
-                            if ~isempty(grid(ind(1), ind(2) + 1))
-                                delta = deltax*[1, 0];
-                            else
-                                opt = true;
-                            end
-                        end
-                        if ind(1) > 1
-                            if ~isempty(grid(ind(1) - 1, ind(2)))
-                                delta = deltay*[1, 0];
-                            else
-                                opt = true;
-                            end
+                    if ind(2) < size(grid, 2) % if gamma is not in the
+                        % last column of the grid, move the grid rightwards
+                        if sum(cellfun(@any, grid(1:ind(1), ind(2) + 1)))
+                            delta = delta + deltax*dirx;
                         end
                     end
-                else
-                    % problema!!!
-                    opt = true; % temporal
                 end
-            case 'right'
-                if dir(1) == 0
-                    if dir(2) > 0
-                        if ind(2) > 1
-                            if ~isempty(grid(ind(1), ind(2) - 1))
-                                delta = deltax*[-1, 0];
-                            else
-                                opt = true;
-                            end
-                        end
-                        if ind(1) < size(grid, 1)
-                            if ~isempty(grid(ind(1) + 1, ind(2)))
-                                delta = deltay*[0, -1];
-                            else
-                                opt = true;
-                            end
-                        end
-                    elseif dir(2) < 0
-                        if ind(1) > 1
-                            if ~isempty(grid(ind(1) - 1, ind(2)))
-                                delta = deltay*[0, 1];
-                            else
-                                opt = true;
-                            end
-                        end
-                        if ind(2) > 1
-                            if ~isempty(grid(ind(1), ind(2) - 1))
-                                delta = deltax*[-1, 0];
-                            else
-                                opt = true;
-                            end
+
+                if dir % downsweep = true. tour is moving to the bottom
+                    if ind(1) > 1 % if gamma is not in the first row of
+                        % the grid, move the grid upwards
+                        if sum(cellfun(@any, grid(ind(1) - 1, 1:ind(2))))
+                            delta = delta + deltay*diry;
                         end
                     end
-                else
-                    % problema!!!
-                    opt = true; % temporal
+                else % tour is moving to the top
+                    if ind(1) < size(grid, 1) % if gamma is not in the last
+                        % row of the grid, move the grid downwards
+                        if sum(cellfun(@any, grid(ind(1) + 1, 1:ind(2))))
+                            delta = delta - deltay*diry;
+                        end
+                    end
                 end
         end
     else
+        error("gamma (grid origin or seed) not found in the grid");
+    end
+    
+    % If delta = [0 0], no taboo tiles were found
+    if norm(delta) == 0
         opt = true;
     end
-
-%     if exist('ind','var')
-%         if xor(dir(1), dir(2))
-%             if dir(1) > 0
-%                 if ind(2) > 1
-%                     delta = deltax*[-1 0];
-%                 elseif ind(1) == 2
-%                     delta = deltay*[0 1];
-%                 elseif ind(1) == (size(grid,1) -  1)
-%                     delta = deltay*[0 -1];
-%                 else
-%                     opt = true;
-%                 end
-%             elseif dir(2) < 0
-%                 if ind(1) > 1
-%                     delta = deltay*[0 1];
-%                 end
-%             end
-%         else
-%             if dir(1) > 0 && dir(2) < 0
-%                 if ind(1) > 1
-%                     delta = deltay*[0 1];
-%                 elseif ind(2) == 2
-%                     delta = deltax*[-1 0];
-%                 %elseif ind(1) == (size(grid,1) - 1)
-%                 %    delta = delta + deltay*[0 -1];
-%                 else
-%                     opt = true;
-%                 end
-%             end
-%             if dir(2) < 0 && abs(dir(1)) <= w
-%                 if ind(1) > 1
-%                     delta = delta + deltay*[0 1];
-%                 else opt = true;
-%                 end
-%             elseif dir(1) < 0
-%                 if ind(1) < sum(~isnan(grid(ind(1),:)))
-%                     delta = delta + deltax*[1 0];
-%                 else opt = true;
-%                 end
-%             elseif dir(1) > 0 && abs(dir(2)) <= h
-%                 if ind(1) > 1
-%                     delta = delta + deltay*[0 1];
-%                 elseif ind(2) > 1
-%                     delta = delta + deltax*[-1 0];
-%                 else
-%                     opt = true;
-%                 end
-%             end
 end
 end
-
-%% Diego
-%     % NO TILES IN PREVIOUS COLUMNS OR ROWS
-%     ok = 0;
-%     gamma = gamma0;
-% 
-%     %DIFFERENT CASES DEPENDING ON THE TOUR DIRECTION
-%     %THE NEXT TILE IS TO THE RIGHT
-%     if dir(2) == 0 && dir(1) > 0
-%         sit = 1;
-%     %THE NEXT TILE IS TO THE LEFT    
-%     elseif dir(2) == 0 && dir(1) < 0
-%         sit = 2;
-%     %THE NEXT TILE IS TO THE BOTTOM 1    
-%     elseif dir(2) < 0 && dir(1) >= 0  
-%         sit = 3;
-%     %THE NEXT TILE IS TO THE BOTTOM 2    
-%     elseif dir(2) < 0 && dir(1) < 0   
-%         sit = 4;
-%     end
-% 
-%     %%%
-% %     figure(2)
-% %     hold off
-% %     plot(targetArea(:,1),targetArea(:,2),'linewidth',3)
-% %     hold on 
-% %     xlim([0 360]);
-% %     ylim([-90 90]);
-% %     xlabel('longitude [°]','FontSize', 12)
-% %     ylabel('latitude [°]','FontSize', 12)
-%     %%%
-% 
-% 
-%     while ok == 0 
-% 
-%         grid = grid_dicretization(w,h,gamma,targetArea);
-%         dim1 = size(grid,1); 
-%         dim2 = size(grid,2); 
-%         flag = 0;
-% 
-% 
-%         for i = 1:dim1
-%             for j = 1:dim2
-%                 if ~isempty(grid{i,j})
-%                     if mean(grid{i,j} == gamma) == 1
-%                         indexes = [i,j];
-%                         flag = 1;
-%                         break
-%                     end    
-%                 end
-%             end 
-%             if flag == 1
-%                 break
-% 
-%             end    
-%         end
-% 
-% 
-%         if sit == 1
-%             if indexes(1) == 1 && indexes(2) == 1
-%                 ok = 1;
-%             elseif indexes(1) == 1  &&  indexes(2) ~= 1 
-%                 gamma = gamma + [-0.1*(h*0.5), 0];
-%             elseif indexes(1) ~= 1 
-%                 gamma = gamma + [0, 0.1*(h*0.5)];
-%             end    
-%         elseif sit == 2
-%             if indexes(1) == 1 && indexes(2) == dim2
-%                 ok = 1;
-%             elseif indexes(1) == 1 && isempty(grid{indexes(1),indexes(2)+1})
-%                 ok = 1;
-%             elseif indexes(1) == 1 
-%                 gamma = gamma + [0.5*(h*0.5), 0];
-%             else
-%                 gamma = gamma + [0, 0.1*(h*0.5)];
-%             end 
-%         elseif sit == 3
-%             if indexes(1) == 1 && indexes(2) == dim2
-%                 ok = 1;
-%             elseif indexes(1) == 1 && indexes(2) == 1    
-%                 ok = 1;
-%             elseif indexes(1) == 1 && isempty(grid{indexes(1),indexes(2)+1})
-%                 ok = 1;    
-%             elseif indexes(1) ~= 1
-%                 gamma = gamma + [0, 0.1*(h*0.5)];
-%             end 
-%         else
-%             ok = 1;
-%         end    
-%     end    
