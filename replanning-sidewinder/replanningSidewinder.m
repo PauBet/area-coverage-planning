@@ -71,101 +71,43 @@ writeVideo(v2,getframe(fig2));
 % The first time iteration is the starting time in the planning horizon
 t = startTime;
 
+% Closest polygon side to the spacecraft's ground track position
+cside = closestSide(target, sc, t, roi);
+
 while ~iszero(roi) && t <= endTime && ~exit
 
-    if t == startTime
+    if t == startTime || isempty(tour)
         % Initial 2D grid layout discretization: the instrument's FOV is
         % going to be projected onto the uncovered area's centroid and the
         % resulting footprint shape is used to set the grid spatial
         % resolution
 
-        % Closest polygon side to the spacecraft's ground track position
-        cside = closestSide(target, sc, t, roi);
-
         [gamma(1), gamma(2)] = centroid(polyshape(roi(:,1),...
             roi(:,2)));
-        fprint0 = footprint(gamma(1), gamma(2), t, inst, sc, ...
-            target, theta);  % centroid footprint
-        if isempty(fprint0)
-            disp("Region of interest not visible from the instrument")
-            return; % the footprint is empty because the roi (in this case, 
-            % more specifically, the center point of the roi area) is not
-            % visible from the instrument FOV. Therefore, the function is
-            % exited. This may not be completely correct because the roi
-            % area could be large enough so that its centroid is not
-            % visible but any other region inside the area is. This is left
-            % for future work.
-    
-        end
     else
         % For the subsequent time steps, the following observation
         % programmed in the previous tour calculation is used to discretize
         % the remaining uncovered area
         gamma = tour{1};
-        fprint0 = footprint(gamma(1), gamma(2), t, inst, sc, ...
-            target, theta);
-        if isempty(fprint0)
-            disp("Region of interest not visible from the instrument")
-            return; % the footprint is empty because the roi is not
-            % visible from the instrument FOV. Therefore, the function is
-            % exited. This may not be completely correct because the roi
-            % area could be large enough so that any other region inside 
-            % the area is visible. This is left for future work.
-        end
     end
-    
-    % Grid optimization
-    if isempty(tour)
-        [gamma(1), gamma(2)] = centroid(polyshape(roi(:,1),...
-            roi(:,2)));
-    else
-        % Direction of the next observation in the coverage path
-        flag = 0;
-        for i=1:size(grid,1)
-            for j=1:size(grid,2)
-                if ~isempty(grid{i,j})
-                    if norm(grid{i,j} - gamma') < 1e-3
-                        ind = [i j];
-                        flag = 1;
-                        break;
-                    end
-                end
-            end
-            if flag
-                break;
-            end
-        end
-        ind1 = [i, j];
-
-        flag = 0;
-        for i=1:size(grid,1)
-            for j=1:size(grid,2)
-                if ~isempty(grid{i,j})
-                    if norm(grid{i,j} - A{end}') < 1e-3
-                        ind = [i j];
-                        flag = 1;
-                        break;
-                    end
-                end
-            end
-            if flag
-                break;
-            end
-        end
-        ind2 = [i, j];
-
-        %dir = gamma - A{end};
-        dir = ind2 - ind1;
-        % Optimization of the grid in order to avoid gridlock
-        gamma = optimizeGridOrigin(gamma, fprint0, olapx, olapy, ...
-            roi, dir, cside);
+    fprint0 = footprint(gamma(1), gamma(2), t, inst, sc, ...
+        target, theta);  % reference footprint at gamma
+    if isempty(fprint0)
+        disp("Region of interest not visible from the instrument")
+        return; % the footprint is empty because the roi is not
+        % visible from the instrument FOV. Therefore, the function is
+        % exited. This may not be completely correct because the roi
+        % area could be large enough so that its centroid is not
+        % visible but any other region inside the area is. This is left
+        % for future work.
     end
 
     % Sorted list of grid points according to the sweeping/coverage path
     % (see Boustrophedon decomposition)
-    [tour, grid] = planSidewinderTour(target, sc, t, roi, fprint0, gamma,...
+    [tour, ~] = planSidewinderTour(target, sc, t, roi, fprint0, gamma,...
         olapx, olapy, cside);
 
+    if ~isempty(tour)
     % Compute the footprint of each point in the tour successively and
     % subtract the corresponding area from the target polygon
     a = tour{1}; % observation
@@ -192,10 +134,9 @@ while ~iszero(roi) && t <= endTime && ~exit
 
         % Spacecraft ground track position in Figure 2
         groundTrack = cspice_subpnt('INTERCEPT/ELLIPSOID', target,...
-            t, targetFrame,...
-            'NONE', sc);
+            t, targetFrame, 'NONE', sc);
         [~, sclon, sclat] = cspice_reclat(groundTrack);
-        plot(sclon*cspice_dpr, sclat*cspice_dpr, 'y^', 'MarkerSize', 6)
+        plot(ax2, sclon*cspice_dpr, sclat*cspice_dpr, 'g^', 'MarkerSize', 6)
 
         % Save Figure 2 frame in the animation
         writeVideo(v2, getframe(fig2));
@@ -203,18 +144,17 @@ while ~iszero(roi) && t <= endTime && ~exit
         % New time iteration
         t = t + tobs;
         %t = t + tobs + slewDur(t, A{end}, A{end + 1}); % future work
-
-        % Stop criteria: if the surface of the remaining uncovered roi area
-        % is smaller than half of the last footprint size, then it is not
-        % worth it to start the tour (for the uncovered roi area) again
-        if polysurfarea(poly1.Vertices, target) < ...
-                .5*(polysurfarea(fprinti.bvertices, target)) || ...
-                isempty(tour)
-            %% Revisar aquest isempty(tour)
-            exit = true;
-        else
-            roi = poly1.Vertices;
-        end
+    end
+    end
+    % Stop criteria: if the surface of the remaining uncovered roi area
+    % is smaller than half of the last footprint size, then it is not
+    % worth it to start the tour (for the uncovered roi area) again
+    if area(polyshape(poly1.Vertices(:, 1), poly1.Vertices(:, 2))) < ...
+            0.7*area(polyshape(fprinti.bvertices(:, 1), ...
+            fprinti.bvertices(:, 2)))
+        exit = true;
+    else
+        roi = poly1.Vertices;
     end
 end
 
