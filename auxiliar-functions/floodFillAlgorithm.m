@@ -51,10 +51,10 @@ fpx = [gamma(1) - w/2, gamma(1) - w/2, gamma(1) + w/2, gamma(1) + w/2];
 fpy = [gamma(2) + h/2, gamma(2) - h/2, gamma(2) - h/2, gamma(2) + h/2];
 
 % Subtract the rectangle from the targetArea
-inter = subtract(polyshape(targetArea(:,1), targetArea(:,2)), ...
-    polyshape(fpx, fpy));
-areaI = area(inter);
 targetpshape = polyshape(targetArea(:,1), targetArea(:,2));
+fpshape = polyshape(fpx, fpy);
+inter = subtract(targetpshape, fpshape);
+areaI = area(inter);
 areaT = area(targetpshape);
 
 % Check if the rectangle at gamma and size [w,h] is contained in
@@ -80,30 +80,32 @@ if inside
     % minimum of the target (this also avoids sub-optimality in the
     % optimization algorithms)
     areaInter = areaT - areaI;
-    fpArea = area(polyshape(fpx, fpy));
+    fpArea = area(fpshape);
+
+    if visited || areaInter/fpArea < 0.2
+        return;
+    end
 
     % In case it has not been previously visited, then check the cardinal
-    % (and diagonal neighbors in case the method is set to 8fill) 
+    % (and diagonal neighbors in case the method is set to 8fill)
     % neighbors recursively
-    if ~visited && areaInter/fpArea >= 0.2
-        gridPoints(end+1,:) = gamma;
-        %plot([gamma(1)-w/2, gamma(1)-w/2, gamma(1)+w/2, gamma(1) + w/2, gamma(1)-w/2],[gamma(2)+ h/2, gamma(2)- h/2, gamma(2)- h/2, gamma(2)+ h/2, gamma(2)+ h/2],'Color','g');
-        %drawnow
+    gridPoints(end+1,:) = gamma;
+    %plot([gamma(1)-w/2, gamma(1)-w/2, gamma(1)+w/2, gamma(1) + w/2, gamma(1)-w/2],[gamma(2)+ h/2, gamma(2)- h/2, gamma(2)- h/2, gamma(2)+ h/2, gamma(2)+ h/2],'Color','g');
+    %drawnow
 
-        gridPoints = floodFillAlgorithm(w, h, olapx, olapy, [gamma(1)-w+ovlapx,          gamma(2)], targetArea, gridPoints, method); % west
-        gridPoints = floodFillAlgorithm(w, h, olapx, olapy, [gamma(1),          gamma(2)-h+ovlapy], targetArea, gridPoints, method); % south
-        gridPoints = floodFillAlgorithm(w, h, olapx, olapy, [gamma(1),          gamma(2)+h-ovlapy], targetArea, gridPoints, method); % north
-        gridPoints = floodFillAlgorithm(w, h, olapx, olapy, [gamma(1)+w-ovlapx,          gamma(2)], targetArea, gridPoints, method); % east
-        if isequal(method,'8fill')
-            gridPoints = floodFillAlgorithm(w, h, olapx, olapy, [gamma(1)-w+ovlapx, gamma(2)+h-ovlapy], targetArea, gridPoints, method); % northwest
-            gridPoints = floodFillAlgorithm(w, h, olapx, olapy, [gamma(1)-w+ovlapx, gamma(2)-h+ovlapy], targetArea, gridPoints, method); % southwest
-            gridPoints = floodFillAlgorithm(w, h, olapx, olapy, [gamma(1)+w-ovlapx, gamma(2)+h-ovlapy], targetArea, gridPoints, method); % northeast
-            gridPoints = floodFillAlgorithm(w, h, olapx, olapy, [gamma(1)+w-ovlapx, gamma(2)-h+ovlapy], targetArea, gridPoints, method); % southeast
-        end
+    gridPoints = floodFillAlgorithm(w, h, olapx, olapy, [gamma(1)-w+ovlapx,          gamma(2)], targetArea, gridPoints, method); % west
+    gridPoints = floodFillAlgorithm(w, h, olapx, olapy, [gamma(1),          gamma(2)-h+ovlapy], targetArea, gridPoints, method); % south
+    gridPoints = floodFillAlgorithm(w, h, olapx, olapy, [gamma(1),          gamma(2)+h-ovlapy], targetArea, gridPoints, method); % north
+    gridPoints = floodFillAlgorithm(w, h, olapx, olapy, [gamma(1)+w-ovlapx,          gamma(2)], targetArea, gridPoints, method); % east
+    if isequal(method,'8fill')
+        gridPoints = floodFillAlgorithm(w, h, olapx, olapy, [gamma(1)-w+ovlapx, gamma(2)+h-ovlapy], targetArea, gridPoints, method); % northwest
+        gridPoints = floodFillAlgorithm(w, h, olapx, olapy, [gamma(1)-w+ovlapx, gamma(2)-h+ovlapy], targetArea, gridPoints, method); % southwest
+        gridPoints = floodFillAlgorithm(w, h, olapx, olapy, [gamma(1)+w-ovlapx, gamma(2)+h-ovlapy], targetArea, gridPoints, method); % northeast
+        gridPoints = floodFillAlgorithm(w, h, olapx, olapy, [gamma(1)+w-ovlapx, gamma(2)-h+ovlapy], targetArea, gridPoints, method); % southeast
     end
 end
 
-if isempty(gridPoints)
-    error("Empty grid!!")
-end
+% if isempty(gridPoints)
+%     error("Empty grid!!")
+% end
 end
