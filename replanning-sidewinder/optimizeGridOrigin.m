@@ -34,8 +34,9 @@ function [grid, gamma] = optimizeGridOrigin(gamma0, fp0, olapx, olapy, ...
 %   > dir:          boolean variable that states in which direction is the
 %                   coverage path currently touring the grid
 %   > cside:        given a region-of-interest, this function defines what 
-%                   is the spacecraft ground track position with respect to
-%                   the edges of the target area. See closestSide function
+%                   is the spacecraft's ground track position with respect
+%                   to the edges of the target area. See closestSide 
+%                   function
 % 
 % Outputs:
 %   > grid:         Flood-fill grid discretization of the 
@@ -48,8 +49,8 @@ gamma = gamma0; % grid origin (seed), i.e., next planned observation in the
 opt = false; % boolean that states if the grid is optimal -i.e., no taboo 
 % tiles- (opt = true) or not (opt = false)
 delta = [0 0]; % array that defines the displacement of the grid
-deltax = 0.1*fp0.sizex; % displacement value in the x direction
-deltay = 0.1*fp0.sizey; % displacement value in the y direction
+deltax = 0.1*fp0.sizex; % displacement value in x direction
+deltay = 0.1*fp0.sizey; % displacement value in y direction
 
 % if the grid is not optimal nor the displacement value has not reached its
 % maximum yet...
@@ -65,90 +66,73 @@ while ~opt && abs(gamma(1) - gamma0(1)) <= fp0.sizex/2 && ...
     delta = [0 0];
     
     % Find which position does gamma occupy in this grid
-    flag = 0;
-    for i=1:size(grid,1)
-        for j=1:size(grid,2)
-            if ~isempty(grid{i,j})
-                if norm(grid{i,j} - gamma') < 1e-3
-                    ind = [i j];
-                    flag = 1;
-                    break;
-                end
-            end
-        end
-        if flag
+    for i=1:numel(grid)
+        if ~isempty(grid{i}) && norm(grid{i} - gamma') < 1e-3
+            [ind_row, ind_col] = ind2sub(size(grid), i);
             break;
         end
     end
 
-    if exist('ind', 'var')
+    if exist('ind_row', 'var')
         switch cside
             case {'up', 'down'} % horizontal sweep
 
-                if isequal(cside, 'down') % spacecraft is towards roi's
+                if strcmp(cside, 'down') % spacecraft is towards roi's
                     % bottom
-                    if ind(1) > 1 % if gamma is not in the first row of the
-                        % grid, move the grid upwards
-                        if sum(cellfun(@any, grid(ind(1) - 1, 1:ind(2))))
-                            delta = delta + deltay*diry;
-                        end
+                    if ind_row > 1 && sum(cellfun(@any, ...
+                            grid(ind_row - 1, 1:ind_col)))
+                        % move the grid upwards
+                        delta = delta + deltay*diry;
                     end
                 else % spacecraft is towards roi's top
-                    if ind(1) < size(grid, 1) % if gamma is not in the
-                        % last row of the grid, move the grid downwards
-                        if sum(cellfun(@any, grid(ind(1) + 1, 1:ind(2))))
-                            delta = delta - deltay*diry;
-                        end
+                    if ind_row < size(grid, 1) && sum(cellfun(@any, ...
+                            grid(ind_row + 1, 1:ind_col))) 
+                        % move the grid downwards
+                        delta = delta - deltay*diry;
                     end
                 end
 
                 if dir % tour is moving to the right (left -> right dir.)
-                    if ind(2) > 1 % if gamma is not in the first column of
-                        % the grid, move the grid leftwards
-                        if sum(cellfun(@any, grid(1:ind(1), ind(2) - 1)))
-                            delta = delta - deltax*dirx;
-                        end
+                    if ind_col > 1 && sum(cellfun(@any, ...
+                            grid(1:ind_row, ind_col - 1)))
+                        % move the grid leftwards
+                        delta = delta - deltax*dirx;
                     end
                 else % tour is moving to the left (right -> left dir.)
-                    if ind(2) < size(grid, 2) % if gamma is not in the last
-                        % column of the grid, move the grid rightwards
-                        if sum(cellfun(@any, grid(1:ind(1), ind(2) + 1)))
-                            delta = delta + deltax*dirx;
-                        end
+                    if ind_col < size(grid, 2) && sum(cellfun(@any, ...
+                            grid(1:ind_row, ind_col + 1)))
+                        % move the grid rightwards
+                        delta = delta + deltax*dirx;
                     end
                 end
 
             case {'right', 'left'} % vertical sweep
 
-                if isequal(cside, 'right')
-                    if ind(2) > 1 % if gamma is not in the first column of
-                        % the grid, move the grid leftwards
-                        if sum(cellfun(@any, grid(1:ind(1), ind(2) - 1)))
-                            delta = delta - deltax*dirx;
-                        end
+                if strcmp(cside, 'right')
+                    if ind_col > 1 && sum(cellfun(@any, ...
+                            grid(1:ind_row, ind_col - 1)))
+                        % move the grid leftwards
+                        delta = delta - deltax*dirx;
                     end
                 else
-                    if ind(2) < size(grid, 2) % if gamma is not in the
-                        % last column of the grid, move the grid rightwards
-                        if sum(cellfun(@any, grid(1:ind(1), ind(2) + 1)))
-                            delta = delta + deltax*dirx;
-                        end
+                    if ind_col < size(grid, 2) && sum(cellfun(@any, ...
+                            grid(1:ind_row, ind_col + 1)))
+                        % move the grid rightwards
+                        delta = delta + deltax*dirx;
                     end
                 end
 
                 if dir % downsweep = true. tour is moving to the bottom
-                    if ind(1) > 1 % if gamma is not in the first row of
-                        % the grid, move the grid upwards
-                        if sum(cellfun(@any, grid(ind(1) - 1, 1:ind(2))))
-                            delta = delta + deltay*diry;
-                        end
+                    if ind_row > 1 && sum(cellfun(@any, ...
+                            grid(ind_row - 1, 1:ind_col)))
+                        % move the grid upwards
+                        delta = delta + deltay*diry;
                     end
                 else % tour is moving to the top
-                    if ind(1) < size(grid, 1) % if gamma is not in the last
-                        % row of the grid, move the grid downwards
-                        if sum(cellfun(@any, grid(ind(1) + 1, 1:ind(2))))
-                            delta = delta - deltay*diry;
-                        end
+                    if ind_row < size(grid, 1) && sum(cellfun(@any, ...
+                            grid(ind_row + 1, 1:ind_col)))
+                        % move the grid downwards
+                        delta = delta - deltay*diry;
                     end
                 end
         end
