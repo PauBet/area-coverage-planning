@@ -24,6 +24,9 @@ function [tour, grid] = planSidewinderTour(target, sc, t, roi, fprint0, ...
 %                   in percentage
 %   > olapy:        grid footprint overlap in the y direction (latitude),
 %                   in percentage
+%   > cside:        given a region-of-interest, this function defines what 
+%                   is the spacecraft ground track position with respect to
+%                   the edges of the target area. See closestSide function
 % 
 % Outputs:
 %   > tour:         cell matrix of the successive planned observations.
@@ -72,31 +75,42 @@ sclon_ = sclon_*cspice_dpr; sclat_ = sclat_*cspice_dpr; % [rad] to [deg]
 % 2D grid discretization
 grid = grid2D(fprint0, olapx, olapy, gamma, roi);
 
+if ~isempty(grid)
 % The origin of the coverage path depends on the spacecraft ground track
 % position
 switch cside
     case {'up','down'} % Horizontal sweep
+
         if counter == 1
             if (sclon - sclon_) >= 0 % sc is moving to the left
-                rightsweep = false;
-            else % right
-                rightsweep = true;
+                rightsweep = false; % if the spacecraft is moving left (in 
+                % the topography map) then the coverage path should start 
+                % at the position furthest to the right (right -> left 
+                % direction)
+            else % sc is moving to the right
+                rightsweep = true; % if the spacecraft is moving right (in 
+                % the topography map) then the coverage path should start 
+                % at the position furthest to the left (left -> right 
+                % direction)
             end
         end
 
         if rightsweep
-            bearing = true; % if the spacecraft is moving right (in the
-            % topography map) then the coverage path should start at the
-            % position furthest to the left (left -> right direction)
+            bearing = true; % left -> right
         else
-            bearing = false; % if the spacecraft is moving left (in the
-            % topography map) then the coverage path should start at the
-            % position furthest to the right (right -> left direction)
+            bearing = false; % right -> left
+        end
+        
+        % Replanning sidewinder: optimize grid origin in order to avoid
+        % potential taboo tiles
+        if counter > 1
+            grid = optimizeGridOrigin(gamma, fprint0, olapx, olapy, ...
+                roi, rightsweep, cside);
         end
 
         for i=1:size(grid,1)
             % Sweep across latitude
-            if isequal(cside, 'up')
+            if isequal(cside, 'down')
                 irow = i;
             else
                 irow = size(grid, 1) - i + 1;
@@ -144,11 +158,9 @@ switch cside
             for i=1:size(grid, 1)
                 for j=1:size(grid, 2)
                     if ~isempty(grid{i, j})
-                        if tour{1}(1) == grid{i,j}(1) && ...
-                                tour{1}(2) == grid{i,j}(2)
+                        if isequal(tour{1}', grid{i,j})
                             curr = [i, j]; % current depicted element
-                        elseif tour{2}(1) == grid{i,j}(1) && ...
-                                tour{2}(2) == grid{i,j}(2)
+                        elseif isequal(tour{2}', grid{i,j})
                             new  = [i, j]; % next depicted element
                         end
                     end
@@ -168,22 +180,29 @@ switch cside
             end
         end
     case {'right','left'} % Vertical sweep
+
         if counter == 1
-            if (sclat - sclat_) < 0 % up
-                downsweep = false;
-            else % down
-                downsweep = true; 
+            if (sclat - sclat_) < 0 % sc is moving up
+                downsweep = false; % if the spacecraft is moving up (in the
+                % topography map) then the coverage path should start at 
+                % the position furthest to the bottom (down -> top 
+                % direction)
+            else % sc is moving down
+                downsweep = true;% if the spacecraft is moving down (in the
+                % topography map) then the coverage path should start at 
+                % the position furthest to the top (top -> down direction)
             end
         end
         
         if downsweep
-            bearing = true; % if the spacecraft is moving down (in the
-            % topography map) then the coverage path should start at the
-            % position furthest to the top (top -> down direction)
+            bearing = true; % top -> down
         else
-            bearing = false; % if the spacecraft is moving up (in the
-            % topography map) then the coverage path should start at the
-            % position furthest to the bottom (down -> top direction)
+            bearing = false; % down -> top
+        end
+
+        if counter > 1
+            grid = optimizeGridOrigin(gamma, fprint0, olapx, olapy, ...
+                roi, bearing, cside);
         end
 
         for i=1:size(grid,2)
@@ -194,7 +213,7 @@ switch cside
                 icol = i;
             end
             for j=1:size(grid, 1)
-                if ~bearing
+                if bearing
                     irow = j;
                 else
                     irow = size(grid, 1) + 1 - j;
@@ -240,11 +259,9 @@ switch cside
             for i=1:size(grid, 1)
                 for j=1:size(grid, 2)
                     if ~isempty(grid{i, j})
-                        if tour{1}(1) == grid{i,j}(1) && ...
-                                tour{1}(2) == grid{i,j}(2)
+                        if isequal(tour{1}', grid{i,j})
                             curr = [i, j]; % current depicted element
-                        elseif tour{2}(1) == grid{i,j}(1) && ...
-                                tour{2}(2) == grid{i,j}(2)
+                        elseif isequal(tour{2}', grid{i,j})
                             new  = [i, j]; % next depicted element
                         end
                     end
@@ -263,6 +280,8 @@ switch cside
                 % direction must be the contrary to the current one
             end
         end
+
+end
 end
 
 end

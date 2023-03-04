@@ -147,8 +147,9 @@ while ~exit && t < endTime
     % Stop criteria: if the surface of the remaining uncovered roi area is
     % smaller than half of the last footprint size, then it is not worth it
     % to start the tour (for the uncovered roi area) again
-    if polysurfarea(poly1.Vertices, target) < ...
-            .5*(polysurfarea(lastfp.bvertices, target))
+    if area(polyshape(poly1.Vertices(:, 1), poly1.Vertices(:, 2))) < ...
+            0.7*area(polyshape(fprinti.bvertices(:, 1), ...
+            fprinti.bvertices(:, 2)))
         exit = true;
     else
         roi = poly1.Vertices;
