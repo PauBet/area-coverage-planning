@@ -1,0 +1,3 @@
+[submodule "RESSlib"]
+	path = RESSlib
+	url = https://github.com/ManelSoria/RESSlib
