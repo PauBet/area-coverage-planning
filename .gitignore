@@ -1,5 +1,8 @@
 # MATLAB cache files
 *.asv
 
+# Output videos
+*.avi
+
 # SPICE Home
 /SPICE
