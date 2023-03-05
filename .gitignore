@@ -1,2 +1,5 @@
 # MATLAB cache files
 *.asv
+
+# SPICE Home
+/SPICE
