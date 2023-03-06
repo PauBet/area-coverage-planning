@@ -97,8 +97,8 @@ while ~exit && t < endTime
 
     % Sorted list of grid points according to the sweeping/coverage path
     % (see Boustrophedon decomposition)
-    tour = planSidewinderTour(target, sc, t, roi, fprintc, gamma,...
-        olapx, olapy, cside);
+    tour = planSidewinderTour(target, sc, t, roi, fprintc,...
+        olapx, olapy, cside, {gamma}, {});
 
     while ~isempty(tour)
         % Compute the footprint of each point in the tour successively and
