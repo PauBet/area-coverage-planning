@@ -41,7 +41,7 @@ function [A, coverage] = replanningSidewinder(startTime, endTime, tobs,...
 %%
 % Pre-allocate variables
 A = {}; % List of observations (successive boresight ground track position)
-tour = {}; % Sorted ROI's grid discretization (Boustrophedon decomposition)
+grid = {}; % Sorted ROI's grid discretization (Boustrophedon decomposition)
 exit = false;
 theta = 0; % temppppppp
 [~, targetFrame, ~] = cspice_cnmfrm(target); % body-fixed frame
@@ -54,7 +54,6 @@ roiarea = polysurfarea(roi, target); % surface area enclosed by the roi
 %% Figure 2.
 % This figure plots the FOV footprint in a 2D topography map of the target
 % body. This can only be enabled for convex objects
-
 ax2 = mapPlot('vesta-map.png');
 fig2 = gcf;
 set(gcf,'units','normalized','OuterPosition',[0.4307,0.3144,0.5656,0.6565]);
@@ -70,26 +69,18 @@ writeVideo(v2,getframe(fig2));
 
 % The first time iteration is the starting time in the planning horizon
 t = startTime;
+% Initial 2D grid layout discretization: the instrument's FOV is
+% going to be projected onto the uncovered area's centroid and the
+% resulting footprint shape is used to set the grid spatial
+% resolution
+[gamma(1), gamma(2)] = centroid(polyshape(roi(:,1), roi(:,2)));
+tour{1} = gamma;
 
 % Closest polygon side to the spacecraft's ground track position
 cside = closestSide(target, sc, t, roi);
 
 while ~iszero(roi) && t <= endTime && ~exit
 
-    if t == startTime || isempty(tour)
-        % Initial 2D grid layout discretization: the instrument's FOV is
-        % going to be projected onto the uncovered area's centroid and the
-        % resulting footprint shape is used to set the grid spatial
-        % resolution
-
-        [gamma(1), gamma(2)] = centroid(polyshape(roi(:,1),...
-            roi(:,2)));
-    else
-        % For the subsequent time steps, the following observation
-        % programmed in the previous tour calculation is used to discretize
-        % the remaining uncovered area
-        gamma = tour{1};
-    end
     fprint0 = footprint(gamma(1), gamma(2), t, inst, sc, ...
         target, theta);  % reference footprint at gamma
     if isempty(fprint0)
@@ -104,14 +95,13 @@ while ~iszero(roi) && t <= endTime && ~exit
 
     % Sorted list of grid points according to the sweeping/coverage path
     % (see Boustrophedon decomposition)
-    [tour, ~] = planSidewinderTour(target, sc, t, roi, fprint0, gamma,...
-        olapx, olapy, cside);
+    [tour, grid] = planSidewinderTour(target, sc, t, roi, fprint0,...
+        olapx, olapy, cside, tour, grid);
 
     if ~isempty(tour)
     % Compute the footprint of each point in the tour successively and
     % subtract the corresponding area from the target polygon
     a = tour{1}; % observation
-    tour(1) = []; % delete this observation from the planned tour
     A{end + 1} = a; % add it in the list of planned observations
     fprinti = footprint(a(1), a(2), t, inst, sc, target, ...
         theta); % compute the observation's footprint
@@ -130,7 +120,7 @@ while ~iszero(roi) && t <= endTime && ~exit
         drawnow
 
         % Figure showing the footprint projection onto the body surface
-        footprint3Dprojection(fprinti, videosave)
+        %footprint3Dprojection(fprinti, videosave)
 
         % Spacecraft ground track position in Figure 2
         groundTrack = cspice_subpnt('INTERCEPT/ELLIPSOID', target,...
@@ -150,7 +140,7 @@ while ~iszero(roi) && t <= endTime && ~exit
     % is smaller than half of the last footprint size, then it is not
     % worth it to start the tour (for the uncovered roi area) again
     if area(polyshape(poly1.Vertices(:, 1), poly1.Vertices(:, 2))) < ...
-            0.7*area(polyshape(fprinti.bvertices(:, 1), ...
+            0.5*area(polyshape(fprinti.bvertices(:, 1), ...
             fprinti.bvertices(:, 2)))
         exit = true;
     else
