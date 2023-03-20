@@ -35,6 +35,7 @@ function [fovbounds, boresight, rotmat, visible] = instorient(inst, target, ...
 
 %%
 % Pre-allocate variables
+boresight = zeros(3, 1);
 method = 'ELLIPSOID'; % assumption: ray intercept function is going to 
 % model the target body as a tri-axial ellipsoid
 [~, targetframe, ~] = cspice_cnmfrm(target); % target frame ID in SPICE
@@ -43,6 +44,7 @@ abcorr = 'LT'; % one-way light time aberration correction parameter.
     cspice_getfov(cspice_bodn2c(inst), 4); % instrument FOV's boundary
     % vectors in the instrument frame
 fovbounds = zeros(3, length(bounds));
+rotmat = zeros(3);
 lon = lon*cspice_rpd; lat = lat*cspice_rpd;
 visible = false;
 
