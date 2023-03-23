@@ -57,6 +57,12 @@ inter = subtract(targetpshape, fpshape);
 areaI = area(inter);
 areaT = area(targetpshape);
 
+% Check: the footprint is larger than the region of interest...
+if areaI == 0
+    gridPoints(end+1, :) = gamma;
+    return;
+end
+
 % Check if the rectangle at gamma and size [w,h] is contained in
 % the target area (either partially or totally)
 if inpolygon(gamma(1), gamma(2), targetArea(:,1), targetArea(:,2))
@@ -90,8 +96,8 @@ if inside
     % (and diagonal neighbors in case the method is set to 8fill)
     % neighbors recursively
     gridPoints(end+1,:) = gamma;
-    %plot([gamma(1)-w/2, gamma(1)-w/2, gamma(1)+w/2, gamma(1) + w/2, gamma(1)-w/2],[gamma(2)+ h/2, gamma(2)- h/2, gamma(2)- h/2, gamma(2)+ h/2, gamma(2)+ h/2],'Color','g');
-    %drawnow
+%     plot([gamma(1)-w/2, gamma(1)-w/2, gamma(1)+w/2, gamma(1) + w/2, gamma(1)-w/2],[gamma(2)+ h/2, gamma(2)- h/2, gamma(2)- h/2, gamma(2)+ h/2, gamma(2)+ h/2],'Color','g');
+%     drawnow
 
     gridPoints = floodFillAlgorithm(w, h, olapx, olapy, [gamma(1)-w+ovlapx,          gamma(2)], targetArea, gridPoints, method); % west
     gridPoints = floodFillAlgorithm(w, h, olapx, olapy, [gamma(1),          gamma(2)-h+ovlapy], targetArea, gridPoints, method); % south
