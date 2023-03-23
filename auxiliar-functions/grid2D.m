@@ -1,4 +1,5 @@
-function matrixGrid = grid2D(fpref, ovlapx, ovlapy, gamma, targetArea)
+function [matrixGrid, dirx, diry] = grid2D(fpref, ovlapx, ovlapy, ...
+    gamma, targetArea)
 % Flood-fill grid discretization of the region-of-interest given a 
 % footprint reference's size and orientation
 %
@@ -30,12 +31,34 @@ function matrixGrid = grid2D(fpref, ovlapx, ovlapy, gamma, targetArea)
 %                   projection onto the body surface, in latitudinal
 %                   coordinates [lon lat], in deg
 
+% Pre-allocate variables
+gridPoints = [];
+matrixGrid = {};
+dirx = [];
+diry = [];
+
 % Get the footprint bounding box
 bbox  = smallestBoundingBox(fpref.bvertices(:, 1), fpref.bvertices(:, 2));
 
 % Get the footprint angle, i.e., the angle that the 2D footprint forms with
 % respect to the meridian-equator axes
-angle = deg2rad(bbox.angle);
+%% Problema: quan les footprints són bastant quadrades... 
+% smallestBoundingBox només obtè una aproximació del poligon regular que
+% envolta la footprint. Així doncs, si les footprints tenen dimensions x i
+% y molt similars però no iguals, pot ser que l'angle de la bbox sigui en
+% una iteració prèvia el d'una direcció (e.g. width) i en la següent
+% l'altra (e.g. height), això és un problema per a la discretització perquè
+% angle(height) - angle(width) = 90º, i això canvia enormement la grid (un
+% cop estem girant la roi un angle i el següent 90º +/-...)
+% Una manera de fer-ho: assumir que l'angle no canviarà gaire i, per tant,
+% mantenir-lo igual al de la primera iteració
+% No és gaire elegant... no ho podríem utilitzar per període de temps molt
+% llargs on l'angle de les conseqüents footprints canviaria molt, però pel
+% que necessitem ara... pot funcionar.
+% Una altra opció seria: projectar direcció x/y del fov i calcular l'angle
+% (de fet, és 'theta'... més endavant)
+persistent angle
+if isempty(angle), angle = deg2rad(bbox.angle); end
 
 % Filling the region-of-interest (roi) with a footprint that is not aligned
 % with the meridian-equator axes is equivalent to filling the oriented
@@ -51,17 +74,24 @@ for j=1:length(targetArea)
 end
 gamma = [cx, cy]' + rotmat*(gamma' - [cx, cy]');
 
-% Flood-fill algorithm to get the grid points of the oriented roi
-gridPoints = [];
-gridPoints = floodFillAlgorithm(fpref.sizex, fpref.sizey, ovlapx, ...
-    ovlapy, gamma, orientedArea, gridPoints, '4fill');
+% temporal
+% figure
+% hold on;
+% plot(polyshape(orientedArea(:,1), orientedArea(:,2)))
+% plot(gamma(1), gamma(2), 'r*')
 
+% Flood-fill algorithm to get the grid points of the oriented roi
+gridPoints = floodFillAlgorithm(bbox.size1, bbox.size2, ovlapx, ...
+    ovlapy, gamma, orientedArea, gridPoints, '8fill');
+
+if ~isempty(gridPoints)
 % Temp figure
 % figure
 % plot(polyshape(targetArea(:,1), targetArea(:,2)))
 % hold on;
 % plot(polyshape(orientedArea(:,1), orientedArea(:,2)))
 % plot(gridPoints(:,1), gridPoints(:,2), 'b*')
+% plot(gamma(1), gamma(2), 'r*')
 % orientedGridPoints = zeros(length(gridPoints), 2);
 % for j=1:length(gridPoints)
 %     orientedGridPoints(j, :) = [cx, cy]' +  transpose(rotmat)*...
@@ -106,6 +136,11 @@ for i=1:length(uniqueLat)
             ([lon lat]' - [cx, cy]'); % rotate values to the original roi
             % orientation
     end
+end
+
+% matrixGrid directions x and y
+dirx = rotmat(1, :);
+diry = rotmat(2, :);
 end
 
 end
