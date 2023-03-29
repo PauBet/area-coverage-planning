@@ -32,8 +32,9 @@ end
 % a function that computes it)
 k = convhull(x, y);
 
-% Save the vertices of the convex hull
-vertices(:, 1) = x(k); vertices(:, 2) = y(k);
+% Save the vertices of the convex hull and find its centroid
+vertices = [x(k), y(k)];
+[cx, cy] = centroid(polyshape(vertices(:,1), vertices(:,2)));
 
 % Sort the vertices in clockwise direction
 [vertices(:,1), vertices(:,2)] = sortcw(vertices(:,1), vertices(:,2));
@@ -53,8 +54,7 @@ for i=2:length(vertices)
     % axis (this way it is easier to find the bounding box with the min and
     % max values of x/y)
     rotmat = [cos(angle) sin(angle);
-              -sin(angle)  cos(angle)];
-    [cx, cy] = centroid(polyshape(vertices(:,1), vertices(:,2)));
+        -sin(angle)  cos(angle)];
     for j=1:length(vertices)
         rotVertices(j, :) = rotmat*(vertices(j, :)' - [cx, cy]');
     end
@@ -72,44 +72,56 @@ for i=2:length(vertices)
                        maxx miny;
                        minx miny;
                        minx maxy];
-
-        % Save bound points of the smallest bounding box
-        for bb=1:length(boundPoints)
-            bbox.boundPoints(bb,:) = transpose(rotmat)*boundPoints(bb, :)'...
-                + [cx, cy]';
-
-            % Check a.m. intercept case
-            if ~isempty(ind) && bbox.boundPoints(bb, 1) >= 180 
-                bbox.boundPoints(bb, 1) = bbox.boundPoints(bb, 1) - 360;
-            end
-        end
-        bbox.boundPoints(end+1, :) = bbox.boundPoints(1,:); % close polygon
-        [bbox.boundPoints(:,1), bbox.boundPoints(:,2)] = ...
-            sortcw(bbox.boundPoints(:,1), bbox.boundPoints(:,2)); % sort
-            % the vertices in clockwise direction
-        
-        % Save min/max longitude and latitude values
-        bbox.maxlon = maxx;
-        bbox.minlon = minx;
-        bbox.maxlat = maxy;
-        bbox.minlat = miny;
-
-        % Save smallest bounding box size
-        bbox.size1 = maxx - minx; bbox.size2 = maxy - miny;
-
-        % Save angle
-        if angle >= pi
-            angle = angle - pi;
-        elseif angle < 0
-            angle = angle + pi;
-        end
-        
-        % first quadrant
-        if angle > pi/2 && angle <= pi
-            angle = angle - pi/2;
-        end
-        bbox.angle = rad2deg(angle);
+        minAngle = angle;
+        opt_maxx = maxx;
+        opt_maxy = maxy;
+        opt_minx = minx;
+        opt_miny = miny;
     end
 end
+
+% Save bound points of the smallest bounding box
+rotmat = [cos(minAngle) sin(minAngle);
+         -sin(minAngle) cos(minAngle)];
+rotBoundPoints = zeros(length(boundPoints) + 1, 2);
+for bb=1:length(boundPoints)
+    rotBoundPoints(bb,:) = transpose(rotmat)*boundPoints(bb, :)'...
+        + [cx, cy]';
+
+    % Check a.m. intercept case
+    if ~isempty(ind) && rotBoundPoints(bb, 1) >= 180
+        rotBoundPoints(bb, 1) = rotBoundPoints(bb, 1) - 360;
+    end
+end
+rotBoundPoints(end, :) = rotBoundPoints(1, :); % close polygon
+[bbox.boundPoints(:,1), bbox.boundPoints(:,2)] = ...
+    sortcw(rotBoundPoints(:,1), rotBoundPoints(:,2)); % sort
+% the vertices in clockwise direction
+
+% Find the footprint's largest direction (height) angle w.r.t. x-axis
+edge1 = [0 opt_maxy];
+edge2 = [opt_maxx 0];
+if norm(edge1) > norm(edge2)
+    edge = transpose(rotmat)*edge1';
+else
+    edge = transpose(rotmat)*edge2';
+end
+
+if (edge(1) < 0 && edge(2) < 0) || (edge(1) > 0 && edge(2) < 0)
+    edge = -edge;
+end
+angle = acos(dot([1 0], edge) / norm(edge));
+
+% Save min/max longitude and latitude values
+bbox.maxlon = opt_maxx;
+bbox.minlon = opt_minx;
+bbox.maxlat = opt_maxy;
+bbox.minlat = opt_miny;
+
+% Save smallest bounding box size
+bbox.size1 = opt_maxx - opt_minx; bbox.size2 = opt_maxy - opt_miny;
+
+% Save bounding box orientation
+bbox.angle = rad2deg(angle);
 
 end
