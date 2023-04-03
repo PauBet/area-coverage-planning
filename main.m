@@ -76,18 +76,18 @@ legend('Annwn Regio', 'Pwyll Crater', 'Tara Regio', 'Footprint',...
 
 %% Mosaic algorithms
 
-for i=2:2
+for i=1:length(roi)
     
     xlim([min(roi{i}(:, 1))-10  max(roi{i}(:, 1)) + 10])
     ylim([min(roi{i}(:, 2))-10  max(roi{i}(:, 2)) + 10])
 
     % Sidewinder
-%    [A, cv] = sidewinder(inittime{i}, stoptime, tobs, inst, sc, target, ...
-%       roi{i}, olapx, olapy, ax, c{i}, videosave);
+    [A, cv] = sidewinder(inittime{i}, stoptime, tobs, inst, sc, target, ...
+       roi{i}, olapx, olapy, ax, c{i}, videosave);
 
     % Replanning Sidewinder
-     [A, cv] = replanningSidewinder(inittime{i}, stoptime, tobs, inst, ...
-         sc, target, roi{i}, olapx, olapy, ax, c{i}, 0);
+    % [A, cv] = replanningSidewinder(inittime{i}, stoptime, tobs, inst, ...
+    %     sc, target, roi{i}, olapx, olapy, ax, c{i}, 0);
 
     % Online Frontier Repair
 
