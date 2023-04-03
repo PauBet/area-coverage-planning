@@ -54,22 +54,26 @@ deltay = 0.1*fp0.sizey; % displacement value in y direction
 
 % if the grid is not optimal nor the displacement value has not reached its
 % maximum yet...
+flag = false;
 while ~opt && abs(gamma(1) - gamma0(1)) <= fp0.sizex/2 && ...
-        abs(gamma(2) - gamma0(2)) <= fp0.sizey/2
+        abs(gamma(2) - gamma0(2)) <= fp0.sizey/2 && ~flag
 
     % Discretize the non-covered roi space (flood-fill), seeded with gamma
     gamma = gamma + delta;
     [grid, dirx, diry] = grid2D(fp0, olapx, olapy, gamma, roi);
 
-    % Check...
-    if isempty(grid)
-        gamma = gamma + [deltax deltay];
-        continue
-    end
-
     % The grid shifting may go in both directions (dirx and diry) and, 
     % in that case, is accumulative
     delta = [0 0];
+
+    % Check...
+    if isempty(grid)
+        [cen(1), cen(2)] = centroid(polyshape(roi(:, 1), roi(:, 2)));
+        dirc = [cen(1) - gamma(1), cen(2) - gamma(2)];
+        dirc = dirc/norm(dirc);
+        delta = [deltax*dirc(1), deltay*dirc(2)];
+        continue
+    end
     
     % Find which position does gamma occupy in this grid
     for i=1:numel(grid)
@@ -208,6 +212,19 @@ end
 % of potential uncovered area
 if ~opt
     grid = grid2D(fp0, olapx, olapy, gamma0, roi);
+
+    % In case the original gamma0 was outside the roi's area (and its 
+    % allocated cell was inferior to the estabished threshold in order to
+    % add it to the grid)...
+    gamma = gamma0;
+    while isempty(grid)
+        [cen(1), cen(2)] = centroid(polyshape(roi(:, 1), roi(:, 2)));
+        dirc = [cen(1) - gamma(1), cen(2) - gamma(2)];
+        dirc = dirc/norm(dirc);
+        delta = [deltax*dirc(1), deltay*dirc(2)];
+        gamma = gamma + delta;
+        grid = grid2D(fp0, olapx, olapy, gamma, roi);
+    end
 
     % This matrix points at the taboo tiles of grid (taboo_idx(i, j) = 1 if
     % there is a taboo tile at element [i, j] of the grid)
