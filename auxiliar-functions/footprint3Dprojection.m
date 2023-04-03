@@ -51,6 +51,9 @@ if ~counter
     image = strcat(lower(fp.target),'-map.png');
     % Load target image for texture map
     c_text = imread(image);
+    if length(size(c_text)) > 2 % reads color, not needed...
+        c_text = c_text(:, :, 1);
+    end
     % Print topography map
     globe = surf(x,y,-z, 'FaceColor', .5*[1 1 1], 'EdgeColor', .5*[1 1 1]);
     set(globe,'FaceColor','texturemap','CData',repmat(c_text,1,1,3), ...

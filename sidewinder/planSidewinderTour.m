@@ -55,7 +55,7 @@ end
 [~, targetFrame, ~] = cspice_cnmfrm(target); % target body-fixed reference 
 % frame
 curr = []; old = [];
-grid = {};
+grid = {}; tour = {};
 
 % ReplanningSidewinder variables:
 persistent counter; % variable that counts the number of times this
@@ -92,68 +92,79 @@ if length(tour0) > 1
     while isempty(grid) && length(tour0) > 1
         tour0(1) = [];
         gamma    = tour0{1};
-        grid     = grid2D(fprint0, olapx, olapy, gamma, roi);
-    end
 
-    % Replanning Sidewinder: unlike Sidewinder, which only calls
-    % planSidewinderTour once, replanning Sidewinder "replans"
-    % after every iteration (i.e., footprint). Therefore, in order not
-    % to lose the original coverage path direction, a boolean variable
-    % is defined to identify when the tour is hopping to a new row/column.
-    % If this variable was not put, planSidewinderTour would always start
-    % at the right/left or top/bottom side of the grid (depending on the 
-    % spacecraft's moving direction).
-    % So, for example, if we have a horizontal sweep, instead of doing 
-    % this:
-    % ---->-----|
-    %           |
-    % |---<-----|
-    % |
-    % |--->------
-    % It would be doing this (discontinuities between lines)
-    % ----------->
-    % >-----------
-    % ------------>
-    %
-    % Likewise, if we have a vertical sweep, instead of doing this:
-    % |  ----
-    % |  |  |
-    % ⌄  ^  ⌄
-    % |  |  |
-    % |  |  |
-    % ----  |
-    % It would be doing this (discontinuities between lines)
-    % | | |
-    % | | |
-    % ⌄ ⌄ ⌄
-    % | | |
-    % | | |
-    % | | |
-    %
-    % The following algorithm identifies if the next element in the
-    % tour will imply a change of row/column in the grid
-    [i, j] = find(~cellfun('isempty', grid0));
-    for k=1:numel(i)
-        if isequal(gamma_old', grid0{i(k), j(k)})
-            old   = [i(k), j(k)];
-        elseif isequal(gamma', grid0{i(k), j(k)})
-            curr  = [i(k), j(k)];
+        % Replanning Sidewinder: unlike Sidewinder, which only calls
+        % planSidewinderTour once, replanning Sidewinder "replans" after
+        % every iteration (i.e., footprint). Therefore, in order not to
+        % lose the original coverage path direction, a boolean variable is
+        % defined to identify when the tour is hopping to a new row/column.
+        % If this variable was not put, planSidewinderTour would always
+        % start at the right/left or top/bottom side of the grid (depending
+        % on the spacecraft's moving direction). So, for example, if we
+        % have a horizontal sweep, instead of doing
+        % this:
+        % ---->-----|
+        %           |
+        % |---<-----|
+        % |
+        % |--->------
+        % It would be doing this (discontinuities between lines)
+        % ----------->
+        % >-----------
+        % ------------>
+        %
+        % Likewise, if we have a vertical sweep, instead of doing this:
+        % |  ----
+        % |  |  |
+        % ⌄  ^  ⌄
+        % |  |  |
+        % |  |  |
+        % ----  |
+        % It would be doing this (discontinuities between lines)
+        % | | |
+        % | | |
+        % ⌄ ⌄ ⌄
+        % | | |
+        % | | |
+        % | | |
+        %
+        % The following algorithm identifies if the next element in the
+        % tour will imply a change of row/column in the grid
+        [i, j] = find(~cellfun('isempty', grid0));
+        for k=1:numel(i)
+            if isequal(gamma_old', grid0{i(k), j(k)})
+                old   = [i(k), j(k)];
+            elseif isequal(gamma', grid0{i(k), j(k)})
+                curr  = [i(k), j(k)];
+            end
+            if ~isempty(old) && ~isempty(curr)
+                break;
+            end
         end
-        if ~isempty(old) && ~isempty(curr)
-            break;
-        end
-    end
 
-    if ismember(cside, {'up', 'down'})
-        if curr(1) ~= old(1) % change of row between replans
-            rightsweep = not(rightsweep); % next row's coverage path's
-            % direction must be the contrary to the current one
+        if ismember(cside, {'up', 'down'})
+            if curr(1) ~= old(1) % change of row between replans
+                rightsweep = not(rightsweep); % next row's coverage path's
+                % direction must be the contrary to the current one
+            end
+            
+            % Replanning sidewinder: optimize grid origin in order to avoid
+            % potential taboo tiles
+            grid = optimizeGridOrigin(gamma, fprint0, olapx, olapy, ...
+                roi, rightsweep, cside);
+        else
+            if curr(2) ~= old(2) % change of row between replans
+                downsweep = not(downsweep); % next row's coverage path's
+                % direction must be the contrary to the current one
+            end
+            
+            % Replanning sidewinder: optimize grid origin in order to avoid
+            % potential taboo tiles
+            grid = optimizeGridOrigin(gamma, fprint0, olapx, olapy, ...
+                roi, downsweep, cside);
         end
-    else
-        if curr(2) ~= old(2) % change of row between replans
-            downsweep = not(downsweep); % next row's coverage path's
-            % direction must be the contrary to the current one
-        end
+
+        curr = []; old = [];
     end
 
 else
@@ -190,13 +201,6 @@ switch cside
             bearing = true; % left -> right
         else
             bearing = false; % right -> left
-        end
-        
-        % Replanning sidewinder: optimize grid origin in order to avoid
-        % potential taboo tiles
-        if counter > 1
-            grid = optimizeGridOrigin(gamma, fprint0, olapx, olapy, ...
-                roi, rightsweep, cside);
         end
         
         tour = cell(1, nnz(~cellfun('isempty', grid))); % list of planned 
@@ -246,11 +250,6 @@ switch cside
             bearing = true; % top -> down
         else
             bearing = false; % down -> top
-        end
-
-        if counter > 1
-            grid = optimizeGridOrigin(gamma, fprint0, olapx, olapy, ...
-                roi, bearing, cside);
         end
         
         tour = cell(1, nnz(~cellfun('isempty', grid))); % list of planned 

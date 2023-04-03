@@ -1,5 +1,5 @@
 function [A, coverage] = replanningSidewinder(startTime, endTime, tobs,...
-    inst, sc, target, roi, olapx, olapy, videosave)
+    inst, sc, target, roi, olapx, olapy, ax, c, videosave)
 % Optimization of the Sidewinder algorithm, adapted from [1]. 
 %
 % Programmers:  Paula Betriu (UPC/ESEIAAT)
@@ -42,28 +42,32 @@ function [A, coverage] = replanningSidewinder(startTime, endTime, tobs,...
 % Pre-allocate variables
 A = {}; % List of observations (successive boresight ground track position)
 grid = {}; % Sorted ROI's grid discretization (Boustrophedon decomposition)
-exit = false;
+exit = false; % Boolean that defines when to stop covering the target area
 theta = 0; % temppppppp
 [~, targetFrame, ~] = cspice_cnmfrm(target); % body-fixed frame
 
+% Previous anti-meridian intersection check...
+ind = find(diff(sort(roi(:, 1))) >= 180, 1); % find the discontinuity index
+if ~isempty(ind)
+    [x, y] = amsplit(roi(:, 1), roi(:, 2));
+    roi(roi(:, 1) < 0, 1) = roi(roi(:, 1) < 0, 1) + 360;
+    [roi(:, 1), roi(:, 2)] = sortcw(roi(:, 1), roi(:, 2));
+else
+    x = roi(:,1); y = roi(:,2);
+end
+
 % Define target area as a polygon
-x = roi(:,1); y = roi(:,2);
-poly1 = polyshape(x,y);
-roiarea = polysurfarea(roi, target); % surface area enclosed by the roi
+poly1 = polyshape(x, y);
+roiarea = area(poly1); % surface area enclosed by the roi
+%roiarea = polysurfarea([x, y], target); 
 
-%% Figure 2.
-% This figure plots the FOV footprint in a 2D topography map of the target
-% body. This can only be enabled for convex objects
-ax2 = mapPlot('vesta-map.png');
-fig2 = gcf;
-set(gcf,'units','normalized','OuterPosition',[0.4307,0.3144,0.5656,0.6565]);
-plot(ax2, polyshape(roi), 'FaceColor', [0.93,0.69,0.13])
-
-% animation figure 2
-v2 = VideoWriter('topography_map_rsidewinder');
-v2.FrameRate = 2;
-open(v2);
-writeVideo(v2,getframe(fig2));
+% Animation of coverage map
+if videosave
+    v2 = VideoWriter('topography_map_rsidewinder');
+    v2.FrameRate = 2;
+    open(v2);
+    writeVideo(v2,getframe(gcf));
+end
 
 %% Replanning Sidewinder algorithm
 
@@ -83,9 +87,10 @@ while ~iszero(roi) && t <= endTime && ~exit
 
     fprint0 = footprint(gamma(1), gamma(2), t, inst, sc, ...
         target, theta);  % reference footprint at gamma
-    if isempty(fprint0)
+    if isempty(fprint0.bvertices)
         disp("Region of interest not visible from the instrument")
-        return; % the footprint is empty because the roi is not
+        exit = true;
+        continue % the footprint is empty because the roi is not
         % visible from the instrument FOV. Therefore, the function is
         % exited. This may not be completely correct because the roi
         % area could be large enough so that its centroid is not
@@ -102,20 +107,29 @@ while ~iszero(roi) && t <= endTime && ~exit
     % Compute the footprint of each point in the tour successively and
     % subtract the corresponding area from the target polygon
     a = tour{1}; % observation
-    A{end + 1} = a; % add it in the list of planned observations
+
+    % Check a.m. intercept...
+    if a(1) > 180, a(1) = a(1) - 360; end
+    
+    % Compute the observation's footprint
     fprinti = footprint(a(1), a(2), t, inst, sc, target, ...
-        theta); % compute the observation's footprint
+        theta);
 
     if ~isempty(fprinti.bvertices)
+        A{end + 1} = a; % add it in the list of planned observations
         poly2 = polyshape(fprinti.bvertices); % create footprint polygon
         poly1 = subtract(poly1, poly2); % update uncovered area
 
         %% Plots
         % Footprint plot in Figure 2
-        plot(ax2, poly2, 'FaceColor', [0.00,0.45,0.74])
+        plot(ax, poly2, 'FaceColor', 'b', 'EdgeColor', ...
+                'b', 'linewidth', 1, 'FaceAlpha', 0.2)
         if length(A) > 1
-            plot(ax2, [A{end-1}(1) A{end}(1)], [A{end-1}(2) A{end}(2)],...
-                'w-', 'linewidth', 1)
+            if abs(A{end-1}(1) - A{end}(1)) <= 180 % no coverage ...
+                % path - a.m. intercept
+                plot(ax, [A{end-1}(1) A{end}(1)], [A{end-1}(2) A{end}(2)],...
+                    'w-', 'linewidth', 1)
+            end
         end
         drawnow
 
@@ -126,31 +140,49 @@ while ~iszero(roi) && t <= endTime && ~exit
         groundTrack = cspice_subpnt('INTERCEPT/ELLIPSOID', target,...
             t, targetFrame, 'NONE', sc);
         [~, sclon, sclat] = cspice_reclat(groundTrack);
-        plot(ax2, sclon*cspice_dpr, sclat*cspice_dpr, 'g^', 'MarkerSize', 6)
+        plot(ax, sclon*cspice_dpr, sclat*cspice_dpr, 'y.', 'MarkerSize', 6)
 
         % Save Figure 2 frame in the animation
-        writeVideo(v2, getframe(fig2));
+        if videosave, writeVideo(v2, getframe(gcf)); end
 
         % New time iteration
         t = t + tobs;
         %t = t + tobs + slewDur(t, A{end}, A{end + 1}); % future work
-    end
+
+        lastfp = fprinti;
     end
     % Stop criteria: if the surface of the remaining uncovered roi area
     % is smaller than half of the last footprint size, then it is not
     % worth it to start the tour (for the uncovered roi area) again
     if area(polyshape(poly1.Vertices(:, 1), poly1.Vertices(:, 2))) < ...
-            0.5*area(polyshape(fprinti.bvertices(:, 1), ...
-            fprinti.bvertices(:, 2)))
+            0.2*area(polyshape(lastfp.bvertices(:, 1), ...
+            lastfp.bvertices(:, 2)))
         exit = true;
     else
-        roi = poly1.Vertices;
+        roi   = poly1.Vertices;
+        gamma = a;
+    end
+    else
+        % Stop criteria: if the surface of the remaining uncovered roi area
+        % is smaller than half of the last footprint size, then it is not
+        % worth it to start the tour (for the uncovered roi area) again
+        if area(polyshape(poly1.Vertices(:, 1), poly1.Vertices(:, 2))) < ...
+                0.2*area(polyshape(lastfp.bvertices(:, 1), ...
+                lastfp.bvertices(:, 2)))
+            exit = true;
+        else
+            roi   = poly1.Vertices;
+            gamma = a;
+        end
+        [gamma(1), gamma(2)] = centroid(polyshape(roi(:,1), roi(:,2)));
+        tour{1} = gamma;
     end
 end
 
 % ROI coverage percentage
-coverage = (roiarea - polysurfarea(poly1.Vertices, target))/roiarea;
+%coverage = (roiarea - polysurfarea(poly1.Vertices, target))/roiarea;
+coverage = (roiarea - area(poly1)) / roiarea;
 
 % End animations
-close(v2)
+if videosave, close(v2); end
 end
