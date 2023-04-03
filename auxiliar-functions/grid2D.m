@@ -79,6 +79,7 @@ gamma = [cx, cy]' + rotmat*(gamma' - [cx, cy]');
 % hold on;
 % plot(polyshape(orientedArea(:,1), orientedArea(:,2)))
 % plot(gamma(1), gamma(2), 'r*')
+% drawnow
 
 % Flood-fill algorithm to get the grid points of the oriented roi
 gridPoints = floodFillAlgorithm(bbox.size1, bbox.size2, ovlapx, ...
