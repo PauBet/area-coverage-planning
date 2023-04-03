@@ -8,6 +8,7 @@ function fp = footprint(lon, lat, t, inst, sc, target, theta)
 % a set of scientific objectives. The spacecraft is assumed to be 3-axis 
 % steerable and, therefore, CK kernels of the spacecraft (past missions)
 % are avoided.
+%% IMPLEMENTAR MODE LOW-RESOLUTION
 %
 % Programmers:  Paula Betriu (UPC/ESEIAAT)
 % Date:         10/2022
@@ -201,6 +202,7 @@ if irr
 else
     %The FOV projection is enclosed in the target surface
     boundPoints(:, end+1) = boundPoints(:, 1); % close polygon
+    % high resolution:
     for i=1:length(boundPoints)-1
         % linear (approximation) interpolation between vertices to define
         % the boundary of the footprint
@@ -213,6 +215,8 @@ else
             surfPoints(count, 3) = boundPoints(3, i) + v(3)*lambda(l); % z
         end
     end
+    % low resolution:
+    % surfPoints = boundPoints';
 end
 
 if isempty(surfPoints), return; end % the FOV does not intercept with the
@@ -301,72 +305,75 @@ end
 % consider the case where the footprint intercepts with the anti-meridian.
 % If it does, we split the footprint in two polygons, cleaved by the line
 % that the original footprint is crossing (a.m.)
-if find(diff(vertices(:,1)) >= 180), aminter = true; end % a.m. intercept
-if aminter && ~(spoleint || npoleint)
-    vertices = sortrows(vertices,1); % sort longitude values
-    ind = find(diff(vertices(:,1)) >= 180); % find the discontinuity index
+% if find(diff(vertices(:,1)) >= 180), aminter = true; end % a.m. intercept
+% if aminter && ~(spoleint || npoleint)
+%     vertices = sortrows(vertices,1); % sort longitude values
+%     ind = find(diff(vertices(:,1)) >= 180); % find the discontinuity index
+% 
+%     % Add interpolated values at the anti-meridian to complete the polygons
+%     seg1 = [vertices(1:ind, 1) vertices(1:ind, 2)];
+%     m = sort(seg1(:,1));
+%     ind1 = seg1(:,1) == m(1); ind2 = seg1(:,1) == m(2);
+%     p1 = seg1(ind1, :); p2 = seg1(ind2, :);
+%     x = linspace(p1(1), p2(1), 20);
+%     y = linspace(p1(2), p2(2), 20);
+%     seg1(end+1:end+length(x), :) = [x' y'];
+%     
+%     % Sort polygon vertices in clockwise order (since the 2D sorting
+%     % algorithm does not work for concave polygons), let's use 3D...
+%     % (inefficient, future work)
+%     for i=1:length(seg1)
+%         rectan(i, :) = cspice_srfrec(cspice_bodn2c(target), ...
+%             seg1(i, 1)*cspice_rpd, seg1(i, 2)*cspice_rpd);
+%     end
+%     [a, b, c] = sortcw(rectan(:, 1), rectan(:, 2), rectan(:, 3));
+%     for i=1:length(a)
+%         [~, seg1(i, 1), seg1(i, 2)] = cspice_reclat([a(i), b(i), c(i)]');
+%     end
+%     seg1(:, 1) = seg1(:, 1)*cspice_dpr;
+%     seg1(:, 2) = seg1(:, 2)*cspice_dpr;
+% 
+%     % Add interpolated values at the anti-meridian to complete the polygons
+%     seg2 = [vertices((ind + 1):size(vertices,1), 1) ...
+%         vertices((ind + 1):size(vertices,1), 2)];
+%     m = sort(seg2(:,1), 'descend');
+%     ind1 = seg2(:,1) == m(1); ind2 = seg2(:,1) == m(2);
+%     p1 = seg2(ind1, :); p2 = seg2(ind2, :);
+%     x = linspace(p1(1), p2(1), 20);
+%     y = linspace(p1(2), p2(2), 20);
+%     seg2(end+1:end+length(x), :) = [x' y'];
+% 
+%     % Sort polygon vertices in clockwise order (since the 2D sorting
+%     % algorithm does not work for concave polygons), let's use 3D...
+%     % (inefficient, future work)
+%     for i=1:length(seg2)
+%         rectan(i, :) = cspice_srfrec(cspice_bodn2c(target), ...
+%             seg2(i, 1)*cspice_rpd, seg2(i, 2)*cspice_rpd);
+%     end
+%     [a, b, c] = sortcw(rectan(:, 1), rectan(:, 2), rectan(:, 3));
+%     for i=1:length(a)
+%         [~, seg2(i, 1), seg2(i, 2)] = cspice_reclat([a(i), b(i), c(i)]');
+%     end
+%     seg2(:, 1) = seg2(:, 1)*cspice_dpr;
+%     seg2(:, 2) = seg2(:, 2)*cspice_dpr;
+% 
+%     clear vertices;
+%     vertices(1:length(seg1), :) = seg1;
+%     vertices(length(seg1) + 1, :) = [NaN, NaN]; % save a NaN between 
+%     % polygons to separate them
+%     vertices((length(seg1) + 2):(length(seg1) + 1 + length(seg2)), 1) = ...
+%         seg2(:, 1);
+%     vertices((length(seg1) + 2):(length(seg1) + 1 + length(seg2)), 2) = ...
+%         seg2(:, 2);
+% end
 
-    % Add interpolated values at the anti-meridian to complete the polygons
-    seg1 = [vertices(1:ind, 1) vertices(1:ind, 2)];
-    m = sort(seg1(:,1));
-    ind1 = seg1(:,1) == m(1); ind2 = seg1(:,1) == m(2);
-    p1 = seg1(ind1, :); p2 = seg1(ind2, :);
-    x = linspace(p1(1), p2(1), 20);
-    y = linspace(p1(2), p2(2), 20);
-    seg1(end+1:end+length(x), :) = [x' y'];
-    
-    % Sort polygon vertices in clockwise order (since the 2D sorting
-    % algorithm does not work for concave polygons), let's use 3D...
-    % (inefficient, future work)
-    for i=1:length(seg1)
-        rectan(i, :) = cspice_srfrec(cspice_bodn2c(target), ...
-            seg1(i, 1)*cspice_rpd, seg1(i, 2)*cspice_rpd);
-    end
-    [a, b, c] = sortcw(rectan(:, 1), rectan(:, 2), rectan(:, 3));
-    for i=1:length(a)
-        [~, seg1(i, 1), seg1(i, 2)] = cspice_reclat([a(i), b(i), c(i)]');
-    end
-    seg1(:, 1) = seg1(:, 1)*cspice_dpr;
-    seg1(:, 2) = seg1(:, 2)*cspice_dpr;
-
-    % Add interpolated values at the anti-meridian to complete the polygons
-    seg2 = [vertices((ind + 1):size(vertices,1), 1) ...
-        vertices((ind + 1):size(vertices,1), 2)];
-    m = sort(seg2(:,1), 'descend');
-    ind1 = seg2(:,1) == m(1); ind2 = seg2(:,1) == m(2);
-    p1 = seg2(ind1, :); p2 = seg2(ind2, :);
-    x = linspace(p1(1), p2(1), 20);
-    y = linspace(p1(2), p2(2), 20);
-    seg2(end+1:end+length(x), :) = [x' y'];
-
-    % Sort polygon vertices in clockwise order (since the 2D sorting
-    % algorithm does not work for concave polygons), let's use 3D...
-    % (inefficient, future work)
-    for i=1:length(seg2)
-        rectan(i, :) = cspice_srfrec(cspice_bodn2c(target), ...
-            seg2(i, 1)*cspice_rpd, seg2(i, 2)*cspice_rpd);
-    end
-    [a, b, c] = sortcw(rectan(:, 1), rectan(:, 2), rectan(:, 3));
-    for i=1:length(a)
-        [~, seg2(i, 1), seg2(i, 2)] = cspice_reclat([a(i), b(i), c(i)]');
-    end
-    seg2(:, 1) = seg2(:, 1)*cspice_dpr;
-    seg2(:, 2) = seg2(:, 2)*cspice_dpr;
-
-    clear vertices;
-    vertices(1:length(seg1), :) = seg1;
-    vertices(length(seg1) + 1, :) = [NaN, NaN]; % save a NaN between 
-    % polygons to separate them
-    vertices((length(seg1) + 2):(length(seg1) + 1 + length(seg2)), 1) = ...
-        seg2(:, 1);
-    vertices((length(seg1) + 2):(length(seg1) + 1 + length(seg2)), 2) = ...
-        seg2(:, 2);
-end
+[fp.bvertices(:, 1), fp.bvertices(:, 2)] = amsplit(vertices(:,1),...
+    vertices(:,2));
 
 %% Save outputs
 % Save footprint vertices
-fp.bvertices(:,1) = vertices(:,1);
-fp.bvertices(:,2) = vertices(:,2);
+%fp.bvertices(:,1) = vertices(:,1);
+%fp.bvertices(:,2) = vertices(:,2);
 
 % Save fov parameters
 fp.fovbounds = bounds; % save fov bounds in the body-fixed reference frame
