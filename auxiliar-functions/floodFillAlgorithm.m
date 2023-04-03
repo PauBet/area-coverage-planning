@@ -88,7 +88,7 @@ if inside
     areaInter = areaT - areaI;
     fpArea = area(fpshape);
 
-    if visited || areaInter/fpArea < 0.2
+    if visited || areaInter/fpArea < 0.1
         return;
     end
 
@@ -96,8 +96,10 @@ if inside
     % (and diagonal neighbors in case the method is set to 8fill)
     % neighbors recursively
     gridPoints(end+1,:) = gamma;
-%     plot([gamma(1)-w/2, gamma(1)-w/2, gamma(1)+w/2, gamma(1) + w/2, gamma(1)-w/2],[gamma(2)+ h/2, gamma(2)- h/2, gamma(2)- h/2, gamma(2)+ h/2, gamma(2)+ h/2],'Color','g');
-%     drawnow
+%      pp = polyshape([gamma(1)-w/2, gamma(1)-w/2, gamma(1)+w/2, gamma(1) + w/2, gamma(1)-w/2],[gamma(2)+ h/2, gamma(2)- h/2, gamma(2)- h/2, gamma(2)+ h/2, gamma(2)+ h/2]);
+%      plot(pp, 'FaceColor', [0.93,0.69,0.13], 'FaceAlpha', 0.2);
+%      plot(gamma(1), gamma(2), 'r^')
+%      drawnow
 
     gridPoints = floodFillAlgorithm(w, h, olapx, olapy, [gamma(1)-w+ovlapx,          gamma(2)], targetArea, gridPoints, method); % west
     gridPoints = floodFillAlgorithm(w, h, olapx, olapy, [gamma(1),          gamma(2)-h+ovlapy], targetArea, gridPoints, method); % south
