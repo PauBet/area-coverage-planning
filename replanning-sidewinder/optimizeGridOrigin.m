@@ -52,7 +52,7 @@ delta = [0 0]; % array that defines the displacement of the grid
 deltax = 0.1*fp0.sizex; % displacement value in x direction
 deltay = 0.1*fp0.sizey; % displacement value in y direction
 
-% if the grid is not optimal nor the displacement value has not reached its
+% if the grid is not optimal nor the displacement value has reached its
 % maximum yet...
 flag = false;
 while ~opt && abs(gamma(1) - gamma0(1)) <= fp0.sizex/2 && ...
@@ -62,18 +62,24 @@ while ~opt && abs(gamma(1) - gamma0(1)) <= fp0.sizex/2 && ...
     gamma = gamma + delta;
     [grid, dirx, diry] = grid2D(fp0, olapx, olapy, gamma, roi);
 
-    % The grid shifting may go in both directions (dirx and diry) and, 
-    % in that case, is accumulative
-    delta = [0 0];
-
-    % Check...
-    if isempty(grid)
+    % In case the original gamma0 was outside the roi's area (and its 
+    % allocated cell was inferior to the estabished threshold in order to
+    % add it to the grid) or if the number of elements in the grid is one
+    % (=gamma) because the region got isolated (floodFill cannot find valid
+    % neighbors, even though there is a significant uncovered area
+    % somewhere else). If it is the last element to be covered (numel(grid)
+    % == 1), replanningSidewinder should not enter
+    if isempty(grid) || numel(grid) == 1
         [cen(1), cen(2)] = centroid(polyshape(roi(:, 1), roi(:, 2)));
         dirc = [cen(1) - gamma(1), cen(2) - gamma(2)];
         dirc = dirc/norm(dirc);
-        delta = [deltax*dirc(1), deltay*dirc(2)];
+        delta = delta + [deltax*dirc(1), deltay*dirc(2)];
         continue
     end
+
+    % The grid shifting may go in both directions (dirx and diry) and,
+    % in that case, is accumulative
+    delta = [0 0];
     
     % Find which position does gamma occupy in this grid
     for i=1:numel(grid)
@@ -215,9 +221,13 @@ if ~opt
 
     % In case the original gamma0 was outside the roi's area (and its 
     % allocated cell was inferior to the estabished threshold in order to
-    % add it to the grid)...
+    % add it to the grid) or if the number of elements in the grid is one
+    % (=gamma) because the region got isolated (floodFill cannot find valid
+    % neighbors, even though there is a significant uncovered area
+    % somewhere else). If it is the last element to be covered (numel(grid)
+    % == 1), replanningSidewinder should not enter
     gamma = gamma0;
-    while isempty(grid)
+    while isempty(grid) || numel(grid) == 1
         [cen(1), cen(2)] = centroid(polyshape(roi(:, 1), roi(:, 2)));
         dirc = [cen(1) - gamma(1), cen(2) - gamma(2)];
         dirc = dirc/norm(dirc);
@@ -385,4 +395,9 @@ if ~opt
     end
     grid(taboo_idx == 1) = {[]};
 end
+
+% Check if there are empty rows and/or columns and erase those...
+empty_rows    = all(cellfun('isempty', grid), 2);
+empty_columns = all(cellfun('isempty', grid), 1);
+grid(empty_rows, :) = []; grid(:, empty_columns) = [];
 end
