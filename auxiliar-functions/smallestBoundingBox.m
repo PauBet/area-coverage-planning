@@ -123,5 +123,10 @@ bbox.size1 = opt_maxx - opt_minx; bbox.size2 = opt_maxy - opt_miny;
 
 % Save bounding box orientation
 bbox.angle = rad2deg(angle);
+if bbox.angle >= 90
+    aux = bbox.size1;
+    bbox.size1 = bbox.size2;
+    bbox.size2 = aux;
+end
 
 end
