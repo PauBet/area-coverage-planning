@@ -88,8 +88,8 @@ sclon_ = sclon_*cspice_dpr; sclat_ = sclat_*cspice_dpr; % [rad] to [deg]
 
 % 2D grid discretization and setting coverage path's sense of sweeping
 if length(tour0) > 1
-    gamma_old = tour0{1};
     while isempty(grid) && length(tour0) > 1
+        gamma_old = tour0{1};
         tour0(1) = [];
         gamma    = tour0{1};
 
