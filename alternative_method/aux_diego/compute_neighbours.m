@@ -1,3 +1,5 @@
+% Compute neighbours
+
 function neighbours = compute_neighbours(target,footprint,et,steps_low,target_orientation,footprint_func,x_foot, y_foot)
 
     dx = 0.95*(max(footprint(1,:))-min(footprint(1,:))); %0.73
