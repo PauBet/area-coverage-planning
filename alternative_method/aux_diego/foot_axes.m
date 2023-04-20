@@ -41,6 +41,10 @@ function [theta, x_foot, y_foot] = foot_axes(zerofootprint,steps_zero)
         y_foot = x2_foot;
     end    
 
-        theta = -1.1*min(theta_1,theta_2);
+    if abs(theta_1)<abs(theta_2)
+        theta = -1.1*theta_1;
+    else
+        theta = -1.1*theta_2;
+    end    
 
 end    
