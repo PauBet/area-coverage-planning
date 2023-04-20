@@ -21,30 +21,24 @@ function [theta, x_foot, y_foot] = foot_axes(zerofootprint,steps_zero)
     % The outputs are defined following these criteria in order to ensure
     % efectiveness
     
-    theta_1 = acos(dot([1,0],x1_foot));
-
-    if theta_1 > pi/2 && theta_1< 3*pi/2
-        theta_1 = theta_1 - pi;
-    end    
-
-    theta_2 = acos(dot([1,0],x2_foot));
-    
-    if theta_2> pi/2 && theta_2< 3*pi/2
-        theta_2 = theta_2 - pi;
-    end 
-
-    if abs(theta_2)<abs(theta_1)
-        x_foot = x2_foot;
-        y_foot = x1_foot;
-    else  
-        x_foot = x1_foot;
-        y_foot = x2_foot;
-    end    
-
-    if abs(theta_1)<abs(theta_2)
-        theta = -1.1*theta_1;
+    if abs(x2_foot(1))>abs(x1_foot(1))
+        if x2_foot(1)<0
+            x_foot = -1*x2_foot;
+            y_foot = x1_foot;
+        else
+            x_foot = x2_foot;
+            y_foot = x1_foot;
+        end    
     else
-        theta = -1.1*theta_2;
-    end    
+        if x1_foot(1)<0
+            x_foot = -1*x1_foot;
+            y_foot = x2_foot;
+        else
+            x_foot = x1_foot;
+            y_foot = x2_foot;
+        end  
+    end
+    
+    theta = 1.1*acos(dot([1,0],x_foot));
 
 end    
