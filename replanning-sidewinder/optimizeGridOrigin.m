@@ -71,7 +71,7 @@ while ~opt && abs(gamma(1) - gamma0(1)) <= fp0.sizex/2 && ...
     % == 1), replanningSidewinder should not enter
     if isempty(grid) || numel(grid) == 1
         [cen(1), cen(2)] = centroid(polyshape(roi(:, 1), roi(:, 2)));
-        dirc = [cen(1) - gamma(1), cen(2) - gamma(2)];
+        dirc = [cen(1) - gamma0(1), cen(2) - gamma0(2)];
         dirc = dirc/norm(dirc);
         delta = delta + [deltax*dirc(1), deltay*dirc(2)];
         continue
@@ -226,14 +226,25 @@ if ~opt
     % neighbors, even though there is a significant uncovered area
     % somewhere else). If it is the last element to be covered (numel(grid)
     % == 1), replanningSidewinder should not enter
+    grid0 = grid;
     gamma = gamma0;
     while isempty(grid) || numel(grid) == 1
         [cen(1), cen(2)] = centroid(polyshape(roi(:, 1), roi(:, 2)));
-        dirc = [cen(1) - gamma(1), cen(2) - gamma(2)];
+        dirc = [cen(1) - gamma0(1), cen(2) - gamma0(2)];
         dirc = dirc/norm(dirc);
         delta = [deltax*dirc(1), deltay*dirc(2)];
         gamma = gamma + delta;
         grid = grid2D(fp0, olapx, olapy, gamma, roi);
+        if abs(gamma(1) - gamma0(1)) >= fp0.sizex/2 || ...
+            abs(gamma(2) - gamma0(2)) >= fp0.sizey/2
+            gamma = gamma0;
+            grid = grid0;
+            break;
+        end
+    end
+
+    if isempty(grid)
+        return;
     end
 
     % This matrix points at the taboo tiles of grid (taboo_idx(i, j) = 1 if
@@ -242,7 +253,7 @@ if ~opt
 
     % Find which position does gamma occupy in this grid
     for i=1:numel(grid)
-        if ~isempty(grid{i}) && norm(grid{i} - gamma0') < 1e-3
+        if ~isempty(grid{i}) && norm(grid{i} - gamma') < 1e-3
             [ind_row, ind_col] = ind2sub(size(grid), i);
             break;
         end
@@ -385,7 +396,7 @@ if ~opt
 
                         % Mark the taboo tile at the taboo_idx matrix
                         [row, col] = find(~cellfun(@isempty, ...
-                            grid((ind_row + 1):end, 1:ind_col)));
+                            grid((ind_row + 1):end, ind_col:end)));
                         row = ind_row + row;
                         col = ind_col + col - 1;
                         taboo_idx(row, col) = 1;

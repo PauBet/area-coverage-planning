@@ -38,7 +38,7 @@ dirx = [];
 diry = [];
 
 % Get the footprint bounding box
-bbox  = smallestBoundingBox(fpref.bvertices(:, 1), fpref.bvertices(:, 2));
+%bbox  = smallestBoundingBox(fpref.bvertices(:, 1), fpref.bvertices(:, 2));
 
 % Get the footprint angle, i.e., the angle that the 2D footprint forms with
 % respect to the meridian-equator axes
@@ -57,8 +57,9 @@ bbox  = smallestBoundingBox(fpref.bvertices(:, 1), fpref.bvertices(:, 2));
 % que necessitem ara... pot funcionar.
 % Una altra opció seria: projectar direcció x/y del fov i calcular l'angle
 % (de fet, és 'theta'... més endavant)
-persistent angle
-if isempty(angle), angle = deg2rad(bbox.angle); end
+% persistent angle
+% if isempty(angle), angle = deg2rad(-fpref.angle); end
+angle = deg2rad(-fpref.angle);
 
 % Filling the region-of-interest (roi) with a footprint that is not aligned
 % with the meridian-equator axes is equivalent to filling the oriented
@@ -66,6 +67,9 @@ if isempty(angle), angle = deg2rad(bbox.angle); end
 % the region-of-interest to orient it according to the footprint
 rotmat = [cos(angle)   -sin(angle);
           sin(angle)   cos(angle)];
+% matrixGrid directions x and y
+dirx = rotmat(1, :);
+diry = rotmat(2, :);
 [cx, cy] = centroid(polyshape(targetArea(:,1), targetArea(:,2)));
 orientedArea  = zeros(length(targetArea), 2);
 for j=1:length(targetArea)
@@ -82,10 +86,16 @@ gamma = [cx, cy]' + rotmat*(gamma' - [cx, cy]');
 % drawnow
 
 % Flood-fill algorithm to get the grid points of the oriented roi
-gridPoints = floodFillAlgorithm(bbox.size1, bbox.size2, ovlapx, ...
-    ovlapy, gamma, orientedArea, gridPoints, '8fill');
+gridPoints = floodFillAlgorithmPar(fpref.sizex, fpref.sizey, ovlapx, ...
+ ovlapy, gamma, orientedArea, gridPoints, '8fill');
+% gridPoints = [];
+% tic
+%    gridPoints = floodFillAlgorithm(fpref.sizex, fpref.sizey, ovlapx, ...
+%        ovlapy, gamma, orientedArea, gridPoints, '8fill');
+% toc
 
 if ~isempty(gridPoints)
+
 % Temp figure
 % figure
 % plot(polyshape(targetArea(:,1), targetArea(:,2)))
@@ -138,10 +148,6 @@ for i=1:length(uniqueLat)
             % orientation
     end
 end
-
-% matrixGrid directions x and y
-dirx = rotmat(1, :);
-diry = rotmat(2, :);
 end
 
 end
