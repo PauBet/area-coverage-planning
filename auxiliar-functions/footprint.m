@@ -60,28 +60,27 @@ function fp = footprint(lon, lat, t, inst, sc, target, theta)
 %                        poles.
 % 
 
-%% Print function (temp)
-fprintf('Calculating footprint at time %s...\n', cspice_et2utc(t, 'C', 0));
-
 %% Pre-allocate variables
-fp.inst = inst;
-fp.sc = sc;
-fp.target = target;
-fp.t = t;
+fp.inst      = inst;
+fp.sc        = sc;
+fp.target    = target;
+fp.t         = t;
 fp.bvertices = []; % footprint boundary vertices, in latitudinal 
 % coordinates, in deg
-fp.olon = lon; % longitude value of FOV boresight projection onto the body 
-% surface, in [deg]
-fp.olat = lat; % latitude value of FOV boresight projection onto the body 
-% surface, in [deg]
-fp.sizex = 0; % horizontal size (longitude) [deg]
-fp.sizey = 0; % vertical size (latitude) [deg]
+fp.olon      = lon; % longitude value of FOV boresight projection onto the 
+% body surface, in [deg]
+fp.olat      = lat; % latitude value of FOV boresight projection onto the 
+% body surface, in [deg]
+fp.sizex     = 0; % horizontal size (longitude) [deg]
+fp.sizey     = 0; % vertical size (latitude) [deg]
 fp.fovbsight = []; % FOV boresight in target frame centered at the 
 % spacecraft position
 fp.fovbounds = []; % FOV bounds in target frame centered at the spacecraft
 % position
 fp.poleIntercept = []; % determines if the footprint intercepts the north
 % pole (='north pole') or the south pole (='south pole')
+fp.limb      = false; % boolean that defines if the FOV projects onto the
+% planetary body's limb
 
 %% Parameters
 method = 'ELLIPSOID'; % assumption: ray intercept function is going to 
@@ -129,13 +128,12 @@ for i=1:length(bounds)
     % If the FOV boundary does not intercept the target...
     if ~found
         irr = true;
-        fprintf('Limb intercept calculation...\n');
+        fp.limb = true;
         break;
     end
 end
 surfPoints = []; % matrix that saves the rectangular coordinates of the 
 % intercept points between the FOV perimeter and the body surface
-aminter = false; % anti-meridian intercept
 count = 0; % counter of found intercept points
 if irr
     % For those cases where the FOV does not completely contain the target,
@@ -305,95 +303,55 @@ end
 % consider the case where the footprint intercepts with the anti-meridian.
 % If it does, we split the footprint in two polygons, cleaved by the line
 % that the original footprint is crossing (a.m.)
-% if find(diff(vertices(:,1)) >= 180), aminter = true; end % a.m. intercept
-% if aminter && ~(spoleint || npoleint)
-%     vertices = sortrows(vertices,1); % sort longitude values
-%     ind = find(diff(vertices(:,1)) >= 180); % find the discontinuity index
-% 
-%     % Add interpolated values at the anti-meridian to complete the polygons
-%     seg1 = [vertices(1:ind, 1) vertices(1:ind, 2)];
-%     m = sort(seg1(:,1));
-%     ind1 = seg1(:,1) == m(1); ind2 = seg1(:,1) == m(2);
-%     p1 = seg1(ind1, :); p2 = seg1(ind2, :);
-%     x = linspace(p1(1), p2(1), 20);
-%     y = linspace(p1(2), p2(2), 20);
-%     seg1(end+1:end+length(x), :) = [x' y'];
-%     
-%     % Sort polygon vertices in clockwise order (since the 2D sorting
-%     % algorithm does not work for concave polygons), let's use 3D...
-%     % (inefficient, future work)
-%     for i=1:length(seg1)
-%         rectan(i, :) = cspice_srfrec(cspice_bodn2c(target), ...
-%             seg1(i, 1)*cspice_rpd, seg1(i, 2)*cspice_rpd);
-%     end
-%     [a, b, c] = sortcw(rectan(:, 1), rectan(:, 2), rectan(:, 3));
-%     for i=1:length(a)
-%         [~, seg1(i, 1), seg1(i, 2)] = cspice_reclat([a(i), b(i), c(i)]');
-%     end
-%     seg1(:, 1) = seg1(:, 1)*cspice_dpr;
-%     seg1(:, 2) = seg1(:, 2)*cspice_dpr;
-% 
-%     % Add interpolated values at the anti-meridian to complete the polygons
-%     seg2 = [vertices((ind + 1):size(vertices,1), 1) ...
-%         vertices((ind + 1):size(vertices,1), 2)];
-%     m = sort(seg2(:,1), 'descend');
-%     ind1 = seg2(:,1) == m(1); ind2 = seg2(:,1) == m(2);
-%     p1 = seg2(ind1, :); p2 = seg2(ind2, :);
-%     x = linspace(p1(1), p2(1), 20);
-%     y = linspace(p1(2), p2(2), 20);
-%     seg2(end+1:end+length(x), :) = [x' y'];
-% 
-%     % Sort polygon vertices in clockwise order (since the 2D sorting
-%     % algorithm does not work for concave polygons), let's use 3D...
-%     % (inefficient, future work)
-%     for i=1:length(seg2)
-%         rectan(i, :) = cspice_srfrec(cspice_bodn2c(target), ...
-%             seg2(i, 1)*cspice_rpd, seg2(i, 2)*cspice_rpd);
-%     end
-%     [a, b, c] = sortcw(rectan(:, 1), rectan(:, 2), rectan(:, 3));
-%     for i=1:length(a)
-%         [~, seg2(i, 1), seg2(i, 2)] = cspice_reclat([a(i), b(i), c(i)]');
-%     end
-%     seg2(:, 1) = seg2(:, 1)*cspice_dpr;
-%     seg2(:, 2) = seg2(:, 2)*cspice_dpr;
-% 
-%     clear vertices;
-%     vertices(1:length(seg1), :) = seg1;
-%     vertices(length(seg1) + 1, :) = [NaN, NaN]; % save a NaN between 
-%     % polygons to separate them
-%     vertices((length(seg1) + 2):(length(seg1) + 1 + length(seg2)), 1) = ...
-%         seg2(:, 1);
-%     vertices((length(seg1) + 2):(length(seg1) + 1 + length(seg2)), 2) = ...
-%         seg2(:, 2);
-% end
-
 [fp.bvertices(:, 1), fp.bvertices(:, 2)] = amsplit(vertices(:,1),...
-    vertices(:,2));
+    vertices(:,2)); % save footprint vertices
 
 %% Save outputs
-% Save footprint vertices
-%fp.bvertices(:,1) = vertices(:,1);
-%fp.bvertices(:,2) = vertices(:,2);
-
 % Save fov parameters
 fp.fovbounds = bounds; % save fov bounds in the body-fixed reference frame
 fp.boresight = pointingRotation*boresight; % save fov boresight vector in
 % the body-fixed reference frame
 
 % Calculate and save footprint size
-if ~irr
-    [boundPoints(1,:), boundPoints(2,:), boundPoints(3,:)] = ...
-        sortcw(boundPoints(1,:), boundPoints(2,:), boundPoints(3,:));
-    
-    dirx = .5*(boundPoints(:,1) + boundPoints(:,2));
-    diry = .5*(boundPoints(:,2) + boundPoints(:,3));
+xaxis = [maxx, 0,    1]';
+yaxis = [0,    maxy, 1]';
+xaxis = pointingRotation*xaxis;
+yaxis = pointingRotation*yaxis;
 
-    fp.sizex = 2*cspice_vsep(recpoint, dirx)*cspice_dpr;
-    fp.sizey = 2*cspice_vsep(recpoint, diry)*cspice_dpr;
+if ~irr
+    % [xpoint, ~, ~, ~] = cspice_sincpt(method, target, t, targetframe, ...
+    %     abcorr, sc, targetframe, xaxis);
+    % [ypoint, ~, ~, ~] = cspice_sincpt(method, target, t, targetframe, ...
+    %     abcorr, sc, targetframe, yaxis);
+
+    [xpoint, ~, ~, ~, ~, ~] = cspice_tangpt(method, target, t,...
+        targetframe, abcorr, 'SURFACE POINT', sc, targetframe, xaxis);
+    [ypoint, ~, ~, ~, ~, ~] = cspice_tangpt(method, target, t,...
+        targetframe, abcorr, 'SURFACE POINT', sc, targetframe, yaxis);
 else
-    bbox = smallestBoundingBox(fp.bvertices(:,1), fp.bvertices(:,2));
-    fp.sizex = bbox.size1;
-    fp.sizey = bbox.size2;
+    [xpoint, ~, ~, ~, ~, ~] = cspice_tangpt(method, target, t,...
+                targetframe, abcorr, corloc, sc, targetframe, xaxis);
+    [ypoint, ~, ~, ~, ~, ~] = cspice_tangpt(method, target, t,...
+                targetframe, abcorr, corloc, sc, targetframe, yaxis);
 end
+
+fp.sizex = 2*cspice_vsep(recpoint, xpoint)*cspice_dpr;
+fp.sizey = 2*cspice_vsep(recpoint, ypoint)*cspice_dpr;
+
+[~, lonx, latx] = cspice_reclat(xpoint);
+xedge = [lonx - lon, latx - lat];
+xedge = xedge./norm(xedge);
+fp.angle = atan2d(xedge(2), xedge(1));
+fp.anglex = fp.angle;
+
+[~, lonx, latx] = cspice_reclat(ypoint);
+xedge = [lonx - lon, latx - lat];
+xedge = xedge./norm(xedge);
+fp.angley = atan2d(xedge(2), xedge(1));
+
+%emnang = emissionang(recpoint, t, target, sc);
+%fp.sizey = fp.sizey*cosd(emnang);
+
+%fp.sizey = fp.sizey * abs(cos(abs(fp.angley - fp.anglex)));
 
 end

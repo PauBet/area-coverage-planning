@@ -150,7 +150,7 @@ if length(tour0) > 1
             
             % Replanning sidewinder: optimize grid origin in order to avoid
             % potential taboo tiles
-            grid = optimizeGridOrigin(gamma, fprint0, olapx, olapy, ...
+            grid = optimizeGridOriginv2(gamma, fprint0, olapx, olapy, ...
                 roi, rightsweep, cside);
         else
             if curr(2) ~= old(2) % change of row between replans
@@ -160,7 +160,7 @@ if length(tour0) > 1
             
             % Replanning sidewinder: optimize grid origin in order to avoid
             % potential taboo tiles
-            grid = optimizeGridOrigin(gamma, fprint0, olapx, olapy, ...
+            grid = optimizeGridOriginv2(gamma, fprint0, olapx, olapy, ...
                 roi, downsweep, cside);
         end
 

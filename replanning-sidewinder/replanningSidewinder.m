@@ -1,5 +1,5 @@
 function [A, coverage, fpList] = replanningSidewinder(startTime, endTime, ...
-    tobs, inst, sc, target, roi, olapx, olapy, ax, c, videosave)
+    tobs, inst, sc, target, roi, olapx, olapy, ax, c, video)
 % Optimization of the Sidewinder algorithm, adapted from [1]. 
 %
 % Programmers:  Paula Betriu (UPC/ESEIAAT)
@@ -46,6 +46,9 @@ exit = false; % Boolean that defines when to stop covering the target area
 theta = 0; % temppppppp
 [~, targetFrame, ~] = cspice_cnmfrm(target); % body-fixed frame
 start = true; % boolean that indicates the start of the algorithm
+fpList = struct([]);
+coverage = 0;
+mapplot = 1;
 
 % Previous anti-meridian intersection check...
 ind = find(diff(sort(roi(:, 1))) >= 180, 1); % find the discontinuity index
@@ -65,11 +68,9 @@ roiarea = area(poly1); % surface area enclosed by the roi
 unroi = poly1; % total uncovered area
 
 % Animation of coverage map
-if videosave
-    v2 = VideoWriter('topography_map_rsidewinder');
-    v2.FrameRate = 2;
-    open(v2);
-    writeVideo(v2,getframe(gcf));
+if ~isempty(video)
+    open(video);
+    writeVideo(video,getframe(gcf));
 end
 
 %% Replanning Sidewinder algorithm
@@ -82,23 +83,34 @@ t = startTime;
 % resolution
 [gamma(1), gamma(2)] = centroid(polyshape(roi(:,1), roi(:,2)));
 tour{1} = gamma;
-lastfp  = footprint(gamma(1), gamma(2), t, inst, sc, target, ...
-    theta);  % reference footprint at gamma
+fprint0  = footprint(gamma(1), gamma(2), t, inst, sc, target, ...
+    theta);
+
+if isempty(fprint0.bvertices)
+    disp("ROI not visible... Exiting algorithm")
+    return;
+end
 
 % Initialize struct that saves footprints (sub-structs)
-fpList = struct([]);
-for fn = fieldnames(lastfp)'
+for fn = fieldnames(fprint0)'
    fpList(1).(fn{1}) = [];
 end
 
 % Closest polygon side to the spacecraft's ground track position
-cside = closestSide(target, sc, t, roi);
+cside = closestSide(target, sc, t, roi, fprint0.angle);
+
+% Start
+[tour, grid] = planSidewinderTour(target, sc, t, roi, fprint0,...
+    olapx, olapy, cside, tour, grid);
+currfp  = footprint(tour{1}(1), tour{1}(2), t, inst, sc, target, ...
+    theta);  % reference footprint at gamma
+clear planSidewinderTour;
 
 while ~iszero(roi) && t <= endTime && ~exit
 
     %fprint0 = footprint(gamma(1), gamma(2), t, inst, sc, ...
     %    target, theta);  % reference footprint at gamma
-    fprint0 = lastfp;
+    fprint0 = currfp;
 
     % Sorted list of grid points according to the sweeping/coverage path
     % (see Boustrophedon decomposition)
@@ -146,43 +158,54 @@ while ~iszero(roi) && t <= endTime && ~exit
             fpList(end + 1) = fprinti;
 
             %% Plots
-            % Footprint plot in Figure 2
-            plot(ax, poly2, 'FaceColor', 'b', 'EdgeColor', ...
-                'b', 'linewidth', 1, 'FaceAlpha', 0.2)
-            if length(A) > 1
-                if abs(A{end-1}(1) - A{end}(1)) <= 180 % no coverage path -
-                    % a.m. intercept
-                    plot(ax, [A{end-1}(1) A{end}(1)], [A{end-1}(2) ...
-                        A{end}(2)], 'w-', 'linewidth', 1)
+            if mapplot
+                % Footprint plot in Figure 2
+                plot(ax, poly2, 'FaceColor', 'b', 'EdgeColor', ...
+                    'b', 'linewidth', 1, 'FaceAlpha', 0.2)
+                if length(A) > 1
+                    if abs(A{end-1}(1) - A{end}(1)) <= 180 % no coverage path -
+                        % a.m. intercept
+                        plot(ax, [A{end-1}(1) A{end}(1)], [A{end-1}(2) ...
+                            A{end}(2)], 'w-', 'linewidth', 1)
+                    end
                 end
+                drawnow
             end
-            drawnow
 
             % Figure showing the footprint projection onto the body surface
-            %footprint3Dprojection(fprinti, videosave)
+            %footprint3Dprojection(fprinti, 0)
 
             % Spacecraft ground track position in Figure 2
-            groundTrack = cspice_subpnt('INTERCEPT/ELLIPSOID', target,...
-                t, targetFrame, 'NONE', sc);
-            [~, sclon, sclat] = cspice_reclat(groundTrack);
-            plot(ax, sclon*cspice_dpr, sclat*cspice_dpr, 'y.', ...
-                'MarkerSize', 6)
+            if mapplot
+                groundTrack = cspice_subpnt('INTERCEPT/ELLIPSOID', target,...
+                    t, targetFrame, 'NONE', sc);
+                [~, sclon, sclat] = cspice_reclat(groundTrack);
+                plot(ax, sclon*cspice_dpr, sclat*cspice_dpr, 'y.', ...
+                    'MarkerSize', 6)
+            end
 
             % Save Figure 2 frame in the animation
-            if videosave, writeVideo(v2, getframe(gcf)); end
+            if ~isempty(video), writeVideo(video, getframe(gcf)); end
 
             % New time iteration
             t = t + tobs;
             %t = t + tobs + slewDur(t, A{end}, A{end + 1}); % future work
 
-            lastfp = fprinti;
+            currfp = fprinti;
+            if length(tour) > 1
+                nextfp = footprint(tour{2}(1), tour{2}(2), t, inst, sc, target, ...
+                    theta);
+                if ~isempty(nextfp.bvertices)
+                    currfp = nextfp;
+                end
+            end
             roi    = poly1.Vertices;
         else
             disp("Footprint not visible from the instrument")
 
             % Erase the allocated area of the roi (to prevent the algorithm
-            % to go backwards)
-            faux = lastfp;
+            % going backwards)
+            faux = currfp;
             faux.bvertices(:, 1) = faux.bvertices(:, 1) - faux.olon + a(1);
             faux.bvertices(:, 2) = faux.bvertices(:, 2) - faux.olat + a(2);
             faux.olon = a(1); faux.olat = a(2);
@@ -197,24 +220,25 @@ while ~iszero(roi) && t <= endTime && ~exit
         % is smaller than half of the last footprint size, then it is not
         % worth it to start the tour (for the uncovered roi area) again
         if area(polyshape(poly1.Vertices(:, 1), poly1.Vertices(:, 2))) < ...
-                0.2*area(polyshape(lastfp.bvertices(:, 1), ...
-                lastfp.bvertices(:, 2)))
+                0.2*area(polyshape(currfp.bvertices(:, 1), ...
+                currfp.bvertices(:, 2)))
             exit = true;
         else
-            roi   = poly1.Vertices;
-            [gamma(1), gamma(2)] = centroid(polyshape(roi(:,1), roi(:,2)));
-            lastfp  = footprint(gamma(1), gamma(2), t, inst, sc, target, ...
-                theta);  % reference footprint at gamma
-            tour{1} = gamma;
-            start = true;
-            
             % COMMENT THIS
-            polyfp = polyshape(lastfp.bvertices(:, 1), ...
-                lastfp.bvertices(:, 2));
+            polyfp = polyshape(currfp.bvertices(:, 1), ...
+                currfp.bvertices(:, 2));
             polyout = intersect(polyfp, poly1);
             if area(polyout) < 0.2*area(polyfp)
                 exit = true;
+                continue
             end
+
+            roi   = poly1.Vertices;
+            [gamma(1), gamma(2)] = centroid(polyshape(roi(:,1), roi(:,2)));
+            currfp  = footprint(gamma(1), gamma(2), t, inst, sc, target, ...
+                theta);  % reference footprint at gamma
+            tour{1} = gamma;
+            start = true;
         end
     end
 end
@@ -227,5 +251,5 @@ fpList(1) = [];
 coverage = (roiarea - area(unroi)) / roiarea;
 
 % End animations
-if videosave, close(v2); end
+%if videosave, close(v2); end
 end

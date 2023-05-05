@@ -42,9 +42,15 @@ function gridPoints = floodFillAlgorithm(w, h, olapx, olapy, gamma,...
 
 % Variables pre-allocation
 inside = false;
-visited= false;
 ovlapx = olapx*w/100; ovlapy = olapy*h/100; % convert overlaps from 
 % percentage to degrees of latitude and longitude, respectively
+
+% Check if the cell has been previously visited
+for i=1:size(gridPoints,1)
+    if abs(gridPoints(i,:) - gamma) < 1e-5
+        return;
+    end
+end
 
 % Rectangular element definition
 fpx = [gamma(1) - w/2, gamma(1) - w/2, gamma(1) + w/2, gamma(1) + w/2];
@@ -74,21 +80,13 @@ else
 end
 
 if inside
-    % Check if the cell has been previously visited
-    for i=1:size(gridPoints,1)
-        if abs(gridPoints(i,:) - gamma) < 1e-5
-            visited = true;
-            break;
-        end
-    end
-
     % Disregard those cases where the footprint does not cover a certain
     % minimum of the target (this also avoids sub-optimality in the
     % optimization algorithms)
     areaInter = areaT - areaI;
     fpArea = area(fpshape);
-
-    if visited || areaInter/fpArea < 0.1
+    
+    if areaInter/fpArea < 0.2
         return;
     end
 
@@ -96,11 +94,11 @@ if inside
     % (and diagonal neighbors in case the method is set to 8fill)
     % neighbors recursively
     gridPoints(end+1,:) = gamma;
-%      pp = polyshape([gamma(1)-w/2, gamma(1)-w/2, gamma(1)+w/2, gamma(1) + w/2, gamma(1)-w/2],[gamma(2)+ h/2, gamma(2)- h/2, gamma(2)- h/2, gamma(2)+ h/2, gamma(2)+ h/2]);
-%      plot(pp, 'FaceColor', [0.93,0.69,0.13], 'FaceAlpha', 0.2);
-%      plot(gamma(1), gamma(2), 'r^')
-%      drawnow
-
+     pp = polyshape([gamma(1)-w/2, gamma(1)-w/2, gamma(1)+w/2, gamma(1) + w/2, gamma(1)-w/2],[gamma(2)+ h/2, gamma(2)- h/2, gamma(2)- h/2, gamma(2)+ h/2, gamma(2)+ h/2]);
+     plot(pp, 'FaceColor', [0.93,0.69,0.13], 'FaceAlpha', 0.2);
+     plot(gamma(1), gamma(2), 'r^')
+     drawnow
+    
     gridPoints = floodFillAlgorithm(w, h, olapx, olapy, [gamma(1)-w+ovlapx,          gamma(2)], targetArea, gridPoints, method); % west
     gridPoints = floodFillAlgorithm(w, h, olapx, olapy, [gamma(1),          gamma(2)-h+ovlapy], targetArea, gridPoints, method); % south
     gridPoints = floodFillAlgorithm(w, h, olapx, olapy, [gamma(1),          gamma(2)+h-ovlapy], targetArea, gridPoints, method); % north
@@ -112,8 +110,4 @@ if inside
         gridPoints = floodFillAlgorithm(w, h, olapx, olapy, [gamma(1)+w-ovlapx, gamma(2)-h+ovlapy], targetArea, gridPoints, method); % southeast
     end
 end
-
-% if isempty(gridPoints)
-%     error("Empty grid!!")
-% end
 end
