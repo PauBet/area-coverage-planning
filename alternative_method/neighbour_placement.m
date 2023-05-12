@@ -14,6 +14,8 @@ function [A] = neighbour_placement(startTime, tobs, inst, sc, ...
               mean(zerofootprint(2,:))];
     roi_real = roi;
     
+    poly_roi = polyshape(roi_real);
+
     %% Footprint orientation parameters
     [theta, x_foot, y_foot] = foot_axes(zerofootprint,steps_zero);
 
@@ -22,7 +24,9 @@ function [A] = neighbour_placement(startTime, tobs, inst, sc, ...
     [center_area(1), center_area(2)] = centroid(poly_area);
 
     pseudo_roi = compute_pseudo_area(roi_real,center_area,theta);
-    
+    poly_pseudo_roi = polyshape(pseudo_roi);
+
+
     %% START AT THE CLOSER CORNER FROM THE ORIGINAL POINTING
 
     target = compute_closer(pseudo_roi,zerotarget);
@@ -42,27 +46,45 @@ function [A] = neighbour_placement(startTime, tobs, inst, sc, ...
     steps_low = 10; % Number of point on each side of the footprints computed during the loop
     time = startTime;
     %% MOSAIC LOOP
-
+    plot(pseudo_roi(:,1),pseudo_roi(:,2))
+    hold on
     while s_area>s_area_zero*error_perc 
         %% Compute the footprint and the neighbours
         target_footprint = footprint_func(time,target_orientation,steps_low);
-        neighbours = compute_neighbours(target,target_footprint,time,steps_low,target_orientation,footprint_func,x_foot,y_foot);    
+        plot(target_footprint(1,:),target_footprint(2,:))
+        poly_target_footprint = polyshape(target_footprint.');
+        [neighbours, neighbours_polys] = compute_neighbours(target,target_footprint,poly_target_footprint,time,steps_low,target_orientation,footprint_func,x_foot,y_foot);    
+        
         % Compute the number of subareas after substracting the area by
         % intersection with a footprint the area might end up splitted in
         % different subareas:
              
         % Compute the remaining area after substracting the footprint to the
         % pseudo ROI
-        [pseudo_roi, s_area] = substract_footprint(pseudo_roi, target_footprint);   
-        % Compute the coverage of the neighbours 
-        neigh_coverage = compute_neighbours_coverage(neighbours, target_orientation, pseudo_roi, footprint_func, time, steps_low); 
-    
-        % Compute the coverage of the current footprint over the real ROI
-        [real_lon, real_lat] = polyclip(roi_real(:,1),roi_real(:,2),target_footprint(1,:),target_footprint(2,:),'int');
+
+        %[pseudo_roi, s_area] = substract_footprint(pseudo_roi, target_footprint);
+
+        poly_pseudo_roi = subtract(poly_pseudo_roi,poly_target_footprint);
+        s_area = area(poly_pseudo_roi);
         
+        % Compute the coverage of the neighbours 
+
+        %neigh_coverage = compute_neighbours_coverage(neighbours, target_orientation, pseudo_roi, footprint_func, time, steps_low); 
+    
+        for i = 1:8         
+            neigh_cov_poly = intersect(poly_pseudo_roi,neighbours_polys{i}); 
+            neigh_coverage(i) = area(neigh_cov_poly);   
+        end    
+
+        % Compute the coverage of the current footprint over the real ROI
+        
+        %[real_lon, real_lat] = polyclip(roi_real(:,1),roi_real(:,2),target_footprint(1,:),target_footprint(2,:),'int');
+        
+        real_coverage = intersect(poly_roi,poly_target_footprint);
+
         % If the actual footprint covers part of the real ROI save it and move
         % to the next instant
-        if ~isempty(real_lon)
+        if real_coverage.NumRegions ~= 0 %~isempty(real_lon)
             A(end+1,:) = [target(1), target(2), time];
             time = time + tobs;
         end
@@ -70,7 +92,6 @@ function [A] = neighbour_placement(startTime, tobs, inst, sc, ...
         % If the neighbours don't provide coverage finish the loop
         if sum(neigh_coverage) == 0
             fprintf('Loop finished by lack of neighbour coverage')
-            neigh_coverage = compute_neighbours_coverage(neighbours, target_orientation, pseudo_roi, footprint_func, time, steps_low);
             break
         end   
  
