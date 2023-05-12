@@ -1,6 +1,6 @@
 % Compute neighbours
 
-function neighbours = compute_neighbours(target,footprint,et,steps_low,target_orientation,footprint_func,x_foot, y_foot)
+function [neighbours, poly_next_footprint] = compute_neighbours(target,footprint,poly_footprint,et,steps_low,target_orientation,footprint_func,x_foot, y_foot)
 
     dx = 0.95*(max(footprint(1,:))-min(footprint(1,:))); %0.73
     dy = 0.95*(max(footprint(2,:))-min(footprint(2,:))); %0.85
@@ -19,8 +19,10 @@ function neighbours = compute_neighbours(target,footprint,et,steps_low,target_or
         for i = 1:8
             next_orientation = new_orientation(et,target_orientation.',neighbours(i,:)); 
             next_footprint = footprint_func(et,next_orientation,steps_low);
-            [cov_lon, cov_lat] = polyclip(next_footprint(1,:),next_footprint(2,:),footprint(1,:),footprint(2,:),'int');
-            if isempty(cov_lon)
+            poly_next_footprint{i} = polyshape(next_footprint.');
+            poly_out = intersect(poly_footprint,poly_next_footprint{i});
+            %[cov_lon, cov_lat] = polyclip(next_footprint(1,:),next_footprint(2,:),footprint(1,:),footprint(2,:),'int');
+            if poly_out.NumRegions == 0 %isempty(cov_lon)
                 ok = 0;
             end 
         end    
