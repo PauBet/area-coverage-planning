@@ -10,7 +10,7 @@ room = 10;
 bodyradii = cspice_bodvrd(target,'RADII',3);
 averageradii = sum(bodyradii)/length(bodyradii);
 %Obtaining observer position in the target body-fixed frame
-[dobs, ~] = cspice_spkpos(obs,et,targetframe,'NONE',target);
+[dobs, ~] = cspice_spkpos(obs,et,targetframe,'LT',target);
 error = 0;
 
 if rotation == 0 %if no rotation matrix has been introduced the program will obtain that one to the input time from the C-kernels
@@ -84,8 +84,10 @@ if error == 0 %IF an exception appeared previously means that the data is not av
                     [~,intlon, intlat] = cspice_reclat(intersection(:,n));
                     coordinate(1,n) = intlon*(180/pi);
                     coordinate(2,n) = intlat*(180/pi);
-                    if coordinate(1,n)<0
+                    if coordinate(1,n)<-180
                        coordinate(1,n) = coordinate(1,n) + 360; 
+                    elseif coordinate(1,n)> 180
+                       coordinate(1,n) = coordinate(1,n) - 360; 
                     end
                     found = 1;
                     n = n + 1;
@@ -97,8 +99,10 @@ if error == 0 %IF an exception appeared previously means that the data is not av
                     [~,intlon, intlat] = cspice_reclat(intersection(:,n));
                     coordinate(1,n) = intlon*(180/pi);
                     coordinate(2,n) = intlat*(180/pi);
-                    if coordinate(1,n)<0
+                    if coordinate(1,n)<-180
                        coordinate(1,n) = coordinate(1,n) + 360; 
+                    elseif coordinate(1,n)> 180
+                       coordinate(1,n) = coordinate(1,n) - 360;    
                     end
                     found = 1;
 %                 else 

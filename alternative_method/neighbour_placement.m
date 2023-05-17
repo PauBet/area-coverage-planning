@@ -1,5 +1,5 @@
 function [A] = neighbour_placement(startTime, tobs, inst, sc, ...
-    target_body, roi)
+    target_body, roi, ax)
     
     %Target reference frame
     target_fixed = append('IAU_',target_body); 
@@ -12,6 +12,7 @@ function [A] = neighbour_placement(startTime, tobs, inst, sc, ...
     [zerofootprint,~, ] = footprint_func(startTime,0,steps_zero);
     zerotarget = [mean(zerofootprint(1,:));
               mean(zerofootprint(2,:))];
+
     roi_real = roi;
     
     poly_roi = polyshape(roi_real);
@@ -34,7 +35,7 @@ function [A] = neighbour_placement(startTime, tobs, inst, sc, ...
     % Compute first footprint
     zero_orientation = cspice_pxform(inst,target_fixed,startTime);
     target_orientation = new_orientation(startTime,zero_orientation.',target); 
-    
+
     %% Loop parameters 
     prev_target = 0; % Neighbour choice of the instant t-1
     prev_prev_target = 0; % Neighbour choice of the instant t-2
@@ -46,12 +47,12 @@ function [A] = neighbour_placement(startTime, tobs, inst, sc, ...
     steps_low = 10; % Number of point on each side of the footprints computed during the loop
     time = startTime;
     %% MOSAIC LOOP
-    plot(pseudo_roi(:,1),pseudo_roi(:,2))
+    %plot(pseudo_roi(:,1),pseudo_roi(:,2))
     hold on
     while s_area>s_area_zero*error_perc 
         %% Compute the footprint and the neighbours
         target_footprint = footprint_func(time,target_orientation,steps_low);
-        plot(target_footprint(1,:),target_footprint(2,:))
+        %plot(target_footprint(1,:),target_footprint(2,:))
         poly_target_footprint = polyshape(target_footprint.');
         [neighbours, neighbours_polys] = compute_neighbours(target,target_footprint,poly_target_footprint,time,steps_low,target_orientation,footprint_func,x_foot,y_foot);    
         
@@ -62,14 +63,10 @@ function [A] = neighbour_placement(startTime, tobs, inst, sc, ...
         % Compute the remaining area after substracting the footprint to the
         % pseudo ROI
 
-        %[pseudo_roi, s_area] = substract_footprint(pseudo_roi, target_footprint);
-
         poly_pseudo_roi = subtract(poly_pseudo_roi,poly_target_footprint);
         s_area = area(poly_pseudo_roi);
         
         % Compute the coverage of the neighbours 
-
-        %neigh_coverage = compute_neighbours_coverage(neighbours, target_orientation, pseudo_roi, footprint_func, time, steps_low); 
     
         for i = 1:8         
             neigh_cov_poly = intersect(poly_pseudo_roi,neighbours_polys{i}); 
@@ -77,15 +74,24 @@ function [A] = neighbour_placement(startTime, tobs, inst, sc, ...
         end    
 
         % Compute the coverage of the current footprint over the real ROI
-        
-        %[real_lon, real_lat] = polyclip(roi_real(:,1),roi_real(:,2),target_footprint(1,:),target_footprint(2,:),'int');
-        
+                
         real_coverage = intersect(poly_roi,poly_target_footprint);
 
         % If the actual footprint covers part of the real ROI save it and move
         % to the next instant
         if real_coverage.NumRegions ~= 0 %~isempty(real_lon)
+            % Footprint plot
+            plot(ax, poly_target_footprint, 'FaceColor', 'b', 'EdgeColor', ...
+                    'b', 'linewidth', 1, 'FaceAlpha', 0.2)
             A(end+1,:) = [target(1), target(2), time];
+            if size(A,1) > 1
+                if abs(A(end-1,1) - A(end,1)) <= 180 % no coverage path -
+                  % a.m. intercept
+                  plot(ax, [A(end-1,1) A(end,1)], [A(end-1,2) ...
+                      A(end,2)], 'w-', 'linewidth', 1)
+               end
+            end
+            drawnow
             time = time + tobs;
         end
     
