@@ -309,7 +309,7 @@ end
 %% Save outputs
 % Save fov parameters
 fp.fovbounds = bounds; % save fov bounds in the body-fixed reference frame
-fp.boresight = pointingRotation*boresight; % save fov boresight vector in
+fp.boresight = boresight; % save fov boresight vector in
 % the body-fixed reference frame
 
 % Calculate and save footprint size
