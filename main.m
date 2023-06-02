@@ -154,14 +154,15 @@ for i=1:1
         case 'r_sidewinder'
             [A, cv, fplist] = replanningSidewinder(inittime{i}, ...
                 stoptime, tobs, inst, sc, target, roi{i}, olapx, olapy, ...
-                ax, c{i}, []);
+                ax, []);
 
         case 'onlinefrontier'
             [A, cv, fplist] = frontierRepair(inittime{i}, stoptime, ...
                 tobs, inst, sc, target, roi{i}, olapx, olapy, ax, c{i}, 0);
 
         case 'gridnibbler'
-            A = gridNibbler(startTime, endTime, step, instName, scName, targetName, roi, 20, 20, 1);
+            A = gridNibbler(startTime, endTime, step, instName, scName, ...
+                targetName, roi, 20, 20, 1);
 
         case 'neighbours'    
             A = neighbour_placement(inittime{i}, tobs, inst, '-77', ...
