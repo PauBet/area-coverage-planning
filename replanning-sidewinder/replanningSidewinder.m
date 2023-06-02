@@ -1,5 +1,5 @@
 function [A, coverage, fpList] = replanningSidewinder(startTime, endTime, ...
-    tobs, inst, sc, target, roi, olapx, olapy, ax, c, video)
+    tobs, inst, sc, target, roi, olapx, olapy, ax, video)
 % Optimization of the Sidewinder algorithm, adapted from [1]. 
 %
 % Programmers:  Paula Betriu (UPC/ESEIAAT)
@@ -22,33 +22,36 @@ function [A, coverage, fpList] = replanningSidewinder(startTime, endTime, ...
 %                   vertex points are expressed in 2D. 
 %       # roi(:,1) correspond to the x values of the vertices
 %       # roi(:,2) correspond to the y values of the vertices
-%   > olapx:        grid footprint overlap in the x direction (longitude),
+%   > olapx:        grid footprint overlap in the x direction,
 %                   in percentage (width)
-%   > olapy:        grid footprint overlap in the y direction (latitude),
+%   > olapy:        grid footprint overlap in the y direction,
 %                   in percentage (height)
-%   > videosave:
+%   > ax:           axes of the figure (map) where the subsequent 
+%                   observations are going to be projected
+%   > video:        video object where the evolution of the figure (ax)
+%                   over the observation plan is going to be animated
 % 
 % Outputs:
 %   > A:            cell matrix of the successive instrument observations.
-%                   Each observation is defined by the instrument boresight
-%                   projection onto the body surface, in latitudinal
-%                   coordinates [lon lat], in deg
+%                   Each observation is defined by the instrument 
+%                   boresight projection onto the body surface, in 
+%                   latitudinal coordinates [lon lat], in deg
+%   > coverage:     total observation coverage (coveredarea/totalarea)
+%   > fpList:       struct that containts the list of footprints 
+%                   (observations)
 %
 % [1] Shao, E., Byon, A., Davies, C., Davis, E., Knight, R., Lewellen, G., 
 % Trowbridge, M. and Chien, S. (2018). Area coverage planning with 3-axis 
 % steerable, 2D framing sensors.
 
-%%
-% Pre-allocate variables
+% Pre-allocate and define variables
 A = {}; % List of observations (successive boresight ground track position)
 grid = {}; % Sorted ROI's grid discretization (Boustrophedon decomposition)
 exit = false; % Boolean that defines when to stop covering the target area
 theta = 0; % temppppppp
 [~, targetFrame, ~] = cspice_cnmfrm(target); % body-fixed frame
-start = true; % boolean that indicates the start of the algorithm
 fpList = struct([]);
 coverage = 0;
-mapplot = 1;
 
 % Previous anti-meridian intersection check...
 ind = find(diff(sort(roi(:, 1))) >= 180, 1); % find the discontinuity index
@@ -82,7 +85,7 @@ t = startTime;
 % resulting footprint shape is used to set the grid spatial
 % resolution
 [gamma(1), gamma(2)] = centroid(polyshape(roi(:,1), roi(:,2)));
-tour{1} = gamma;
+tour{1} = gamma; % initial tour seed
 fprint0  = footprint(gamma(1), gamma(2), t, inst, sc, target, ...
     theta);
 
@@ -96,10 +99,12 @@ for fn = fieldnames(fprint0)'
    fpList(1).(fn{1}) = [];
 end
 
-% Closest polygon side to the spacecraft's ground track position
+% Closest polygon side to the spacecraft's ground track position (this 
+% sets the starting point of the tour)
 cside = closestSide(target, sc, t, roi, fprint0.angle);
 
-% Start
+% Start using the footprint that corresponds to the first point in the
+% tour
 [tour, grid] = planSidewinderTour(target, sc, t, roi, fprint0,...
     olapx, olapy, cside, tour, grid);
 currfp  = footprint(tour{1}(1), tour{1}(2), t, inst, sc, target, ...
@@ -108,31 +113,14 @@ clear planSidewinderTour;
 
 while ~iszero(roi) && t <= endTime && ~exit
 
-    %fprint0 = footprint(gamma(1), gamma(2), t, inst, sc, ...
-    %    target, theta);  % reference footprint at gamma
-    fprint0 = currfp;
-
     % Sorted list of grid points according to the sweeping/coverage path
     % (see Boustrophedon decomposition)
-    if length(tour) > 2 || start
-        [tour, grid] = planSidewinderTour(target, sc, t, roi, fprint0,...
+    %if length(tour) > 2 || start
+    if length(tour) > 1
+        [tour, grid] = planSidewinderTour(target, sc, t, roi, currfp,...
             olapx, olapy, cside, tour, grid);
-        start = false;
     else
-        tour(1) = []; % if it is the last element of the tour, there is no
-        % need to replan. In case there should have been a necessity 
-        % because the footprint still leaves a significant portion of roi
-        % uncovered (worst case scenario), then it will re-start with the 
-        % uncovered area. This has been done like this because, sometimes,
-        % roi may be divided in more than one polygon, and so the gamma
-        % gets isolated and the flood fill algorithm cannot discretize the
-        % entire region of uncovered roi (it simply does not find gamma's
-        % neighbors because they're too separated from it, think about the
-        % last portion of a star tip, for example). In order to avoid this
-        % problem, planSidewinderTour has identified these cases as
-        % length(tour) == 1, which could interfere with the case where
-        % length(tour) == 1 because it's simply the last footprint of the
-        % discretized area
+        tour(1) = []; % last element of the tour was already observed
     end
 
     if ~isempty(tour)
@@ -158,7 +146,7 @@ while ~iszero(roi) && t <= endTime && ~exit
             fpList(end + 1) = fprinti;
 
             %% Plots
-            if mapplot
+            if ~isempty(ax)
                 % Footprint plot in Figure 2
                 plot(ax, poly2, 'FaceColor', 'b', 'EdgeColor', ...
                     'b', 'linewidth', 1, 'FaceAlpha', 0.2)
@@ -173,10 +161,11 @@ while ~iszero(roi) && t <= endTime && ~exit
             end
 
             % Figure showing the footprint projection onto the body surface
+            % (auxiliary figure)
             %footprint3Dprojection(fprinti, 0)
 
             % Spacecraft ground track position in Figure 2
-            if mapplot
+            if ~isempty(ax)
                 groundTrack = cspice_subpnt('INTERCEPT/ELLIPSOID', target,...
                     t, targetFrame, 'NONE', sc);
                 [~, sclon, sclat] = cspice_reclat(groundTrack);
@@ -238,7 +227,6 @@ while ~iszero(roi) && t <= endTime && ~exit
             currfp  = footprint(gamma(1), gamma(2), t, inst, sc, target, ...
                 theta);  % reference footprint at gamma
             tour{1} = gamma;
-            start = true;
         end
     end
 end
@@ -247,9 +235,8 @@ end
 fpList(1) = [];
 
 % ROI coverage percentage
-%coverage = (roiarea - polysurfarea(poly1.Vertices, target))/roiarea;
 coverage = (roiarea - area(unroi)) / roiarea;
 
 % End animations
-%if videosave, close(v2); end
+if ~isempty(video), close(v2); end
 end
