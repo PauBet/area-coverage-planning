@@ -170,6 +170,10 @@ for i=5:5
         case 'gridnibbler'
             A = gridNibbler(startTime, endTime, step, instName, scName, ...
                 targetName, roi, 20, 20, 1);
+
+        case 'neighbours'    
+            A = neighbour_placement(inittime{i}, tobs, inst, '-77', ...
+                  target, roi{i}, ax);
     end
 
     clear grid2D planSidewinderTour;
