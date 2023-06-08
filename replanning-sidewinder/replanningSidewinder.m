@@ -88,6 +88,11 @@ t = startTime;
 tour{1} = gamma; % initial tour seed
 fprint0  = footprint(gamma(1), gamma(2), t, inst, sc, target, ...
     theta);
+% If the footprint contains the limb, the centroid of the footprint
+% might not coincide with the camera's boresight projection
+% if fprint0.limb
+%     gamma(1) = fprint0.clon; gamma(2) = fprint0.clat;
+% end
 
 if isempty(fprint0.bvertices)
     disp("ROI not visible... Exiting algorithm")
@@ -109,7 +114,11 @@ cside = closestSide(target, sc, t, roi, fprint0.angle);
     olapx, olapy, cside, tour, grid);
 currfp  = footprint(tour{1}(1), tour{1}(2), t, inst, sc, target, ...
     theta);  % reference footprint at gamma
+if currfp.limb
+    gamma(1) = currfp.clon; gamma(2) = currfp.clat;
+end
 clear planSidewinderTour;
+tour = [];
 
 while ~iszero(roi) && t <= endTime && ~exit
 
@@ -120,7 +129,9 @@ while ~iszero(roi) && t <= endTime && ~exit
         [tour, grid] = planSidewinderTour(target, sc, t, roi, currfp,...
             olapx, olapy, cside, tour, grid);
     else
-        tour(1) = []; % last element of the tour was already observed
+        [tour, grid] = planSidewinderTour(target, sc, t, roi, currfp,...
+            olapx, olapy, cside, {gamma}, []);
+        % tour(1) = []; % last element of the tour was already observed
     end
 
     if ~isempty(tour)
@@ -186,6 +197,29 @@ while ~iszero(roi) && t <= endTime && ~exit
                     theta);
                 if ~isempty(nextfp.bvertices)
                     currfp = nextfp;
+                    if currfp.limb
+                        % When the footprint contains the limb, it may
+                        % happen that the boresight projection of the
+                        % camera does not coincide with the centroid of the
+                        % footprint, which is the reference point to
+                        % create the grid discretization. For this reason,
+                        % we shall change the boresight projection for the
+                        % centroid, in order to get a better discretization
+                        % of the ROI
+                        gamma_old(1) = tour{2}(1); gamma_old(2) = tour{2}(2);
+                        tour{2}(1) = currfp.clon; tour{2}(2) = currfp.clat;
+                        [i, j] = find(~cellfun('isempty', grid));
+                        gidx = [];
+                        for k=1:numel(i)
+                            if isequal(gamma_old', grid{i(k), j(k)})
+                                gidx   = [i(k), j(k)];
+                            end
+                            if ~isempty(gidx)
+                                break;
+                            end
+                        end
+                        grid{gidx(1), gidx(2)} = tour{2}';
+                    end
                 end
             end
             roi    = poly1.Vertices;
@@ -202,7 +236,7 @@ while ~iszero(roi) && t <= endTime && ~exit
             poly2 = polyshape(faux.bvertices); % create footprint
             % polygon
             poly1 = subtract(poly1, poly2); % update uncovered area
-            roi    = poly1.Vertices;
+            roi   = poly1.Vertices;
         end
     else
         % Stop criteria: if the surface of the remaining uncovered roi area
@@ -238,5 +272,5 @@ fpList(1) = [];
 coverage = (roiarea - area(unroi)) / roiarea;
 
 % End animations
-if ~isempty(video), close(v2); end
+%if ~isempty(video), close(v2); end
 end

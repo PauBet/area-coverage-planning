@@ -99,7 +99,7 @@ z = bounds(3,1); % z-coordinate of the boundary vectors
 [~, targetframe, ~] = cspice_cnmfrm(target); % target frame ID in SPICE
 abcorr = 'LT'; % one-way light time aberration correction parameter.
 % See cspice_spkpos for further information.
-N = 100; % footprint vertices resolution
+N = 200; % footprint vertices resolution
 recpoint = cspice_srfrec(cspice_bodn2c(target), lon, lat); % rectangular
 % coordinates of the target point in the body-fixed reference frame
 instpos  = cspice_spkpos(sc, t, targetframe, abcorr, target); % rectangular
@@ -136,6 +136,10 @@ surfPoints = []; % matrix that saves the rectangular coordinates of the
 % intercept points between the FOV perimeter and the body surface
 count = 0; % counter of found intercept points
 if irr
+    % Initialize variables
+    maxfx = minx; maxfy = miny;
+    minfx = maxx; minfy = maxy;
+
     % For those cases where the FOV does not completely contain the target,
     % a more refined search is going to be performed in order to define the
     % limits of the footprint
@@ -151,7 +155,7 @@ if irr
             % should not be a significant difference between the target and 
             % surface point correction locus (see cspice_tangpt)
             found = false; % found intercept
-            [aux, alt, ~, ~, ~, ~] = cspice_tangpt(method, target, t,...
+            [~, alt, ~, aux, ~, ~] = cspice_tangpt(method, target, t,...
                 targetframe, abcorr, corloc, sc, targetframe, vec);
             if alt < 10
                 % When the footprint contains the limb, its intercept is
@@ -180,6 +184,18 @@ if irr
                 % plane boundary...
                 count = count + 1;
                 surfPoints(count, :) = aux;
+
+                if y == miny
+                    minfy = miny;
+                elseif y == maxy
+                    maxfy = maxy;
+                end
+
+                if x == minx
+                    minfx = minx;
+                elseif x == maxx
+                    maxfx = maxx;
+                end
             elseif j>0 && found ~= old_found
                 % if the vector intercept status changes from the previous
                 % one, we're sweeping across the object's limb
@@ -190,6 +206,19 @@ if irr
                 else
                     surfPoints(count, :) = aux; % save the current 
                     % intercept
+                end
+
+                if x < minfx
+                    minfx = x;
+                end
+                if y < minfy
+                    minfy = y;
+                end
+                if x > maxfx
+                    maxfx = x;
+                end
+                if y > maxfy
+                    maxfy = y;
                 end
             end
 
@@ -319,39 +348,70 @@ xaxis = pointingRotation*xaxis;
 yaxis = pointingRotation*yaxis;
 
 if ~irr
-    % [xpoint, ~, ~, ~] = cspice_sincpt(method, target, t, targetframe, ...
-    %     abcorr, sc, targetframe, xaxis);
-    % [ypoint, ~, ~, ~] = cspice_sincpt(method, target, t, targetframe, ...
-    %     abcorr, sc, targetframe, yaxis);
-
-    [xpoint, ~, ~, ~, ~, ~] = cspice_tangpt(method, target, t,...
+    [~, ~, ~, xpoint, ~, ~] = cspice_tangpt(method, target, t,...
         targetframe, abcorr, 'SURFACE POINT', sc, targetframe, xaxis);
-    [ypoint, ~, ~, ~, ~, ~] = cspice_tangpt(method, target, t,...
+    [~, ~, ~, ypoint, ~, ~] = cspice_tangpt(method, target, t,...
         targetframe, abcorr, 'SURFACE POINT', sc, targetframe, yaxis);
+    
+    % If the footprint does not contain the limb, then the centroid of the
+    % footprint and the boresight projection are the same
+    fp.clon = fp.olon; fp.clat = fp.olat;
 else
-    [xpoint, ~, ~, ~, ~, ~] = cspice_tangpt(method, target, t,...
+    % If the footprint contains the limb, the projection of the x/y axis,
+    % if these do not intersect the body, will fall in the limb instead of
+    % the midpoints of the footprint. Furthermore, the gamma (surface point
+    % where the camera boresight is pointing at) will not necessarily
+    % coincide with the centroid of the footprint. 
+
+    % We "adjust" the focal plane to the box that encloses the part of the
+    % focal plane that actually contains the body and re-define the x/y
+    % axes within that box
+    deltafy = maxfy - minfy;
+    deltafx = maxfx - minfx;
+    xaxis = [maxfx,               miny + deltafy/2,    1]';
+    yaxis = [minx + deltafx/2 ,   maxfy,               1]';
+    xaxis = pointingRotation*xaxis;
+    yaxis = pointingRotation*yaxis;
+
+    [~, ~, ~, xpoint, ~, ~] = cspice_tangpt(method, target, t,...
                 targetframe, abcorr, corloc, sc, targetframe, xaxis);
-    [ypoint, ~, ~, ~, ~, ~] = cspice_tangpt(method, target, t,...
-                targetframe, abcorr, corloc, sc, targetframe, yaxis);
+    [~, ~, ~, ypoint, ~, ~] = cspice_tangpt(method, target, t,...
+                 targetframe, abcorr, corloc, sc, targetframe, yaxis);
+    
+    % To compute the footprint's angle, we need to re-define the point
+    % "recpoint", which should coincide with the footprint's centroid
+    [lon, lat] = centroid(polyshape(fp.bvertices(:, 1), ...
+        fp.bvertices(:, 2))); % footprint centroid -> new camera's
+        % boresight pointing
+    % Save centroid values
+    fp.clon = lon; fp.clat = lat;
+
+    lon = lon*cspice_rpd; lat = lat*cspice_rpd;
+    recpoint = cspice_srfrec(cspice_bodn2c(target), lon, ...
+        lat); % rectangular coordinates of the centroid
+
 end
 
-fp.sizex = 2*cspice_vsep(recpoint, xpoint)*cspice_dpr;
-fp.sizey = 2*cspice_vsep(recpoint, ypoint)*cspice_dpr;
-
+% Compute the footprint angle between the longitude axis (projection) 
+% and the footprint's x-axis
 [~, lonx, latx] = cspice_reclat(xpoint);
 xedge = [lonx - lon, latx - lat];
 xedge = xedge./norm(xedge);
 fp.angle = atan2d(xedge(2), xedge(1));
-fp.anglex = fp.angle;
 
-[~, lonx, latx] = cspice_reclat(ypoint);
-xedge = [lonx - lon, latx - lat];
-xedge = xedge./norm(xedge);
-fp.angley = atan2d(xedge(2), xedge(1));
-
-%emnang = emissionang(recpoint, t, target, sc);
-%fp.sizey = fp.sizey*cosd(emnang);
-
-%fp.sizey = fp.sizey * abs(cos(abs(fp.angley - fp.anglex)));
+% Compute the footprint size as the angle separation between the
+% boresight and the focal plane's x-axis projection in rectangular
+% coordinates
+if ~irr
+    fp.sizex = 2*cspice_vsep(recpoint, xpoint)*cspice_dpr;
+    fp.sizey = 2*cspice_vsep(recpoint, ypoint)*cspice_dpr;
+else
+    % Compute footprint size from the smallestBoundingBox (the method above
+    % does not work well with limb projections)
+    bbox = smallestBoundingBox(fp.bvertices(:, 1), fp.bvertices(:, 2), ...
+        fp.angle);
+    fp.sizex = bbox.size1;
+    fp.sizey = bbox.size2;
+end
 
 end

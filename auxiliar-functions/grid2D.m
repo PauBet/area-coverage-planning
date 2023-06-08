@@ -77,6 +77,7 @@ periArea(:, 1) = aux(k, 1);
 periArea(:, 2) = aux(k, 2);
 
 % Auxiliary figure
+% figure
 % hold on;
 % plot(polyshape(orientedArea(:,1), orientedArea(:,2)))
 % plot(gamma(1), gamma(2), 'r*')
