@@ -86,6 +86,12 @@ subobs_ = cspice_subpnt('NEAR POINT/ELLIPSOID', target, t + 60,...
 [~, sclon_, sclat_] = cspice_reclat(subobs_); % latitudinal coordinates
 sclon_ = sclon_*cspice_dpr; sclat_ = sclat_*cspice_dpr; % [rad] to [deg]
 
+% In case it is the start of the ending of the algorithm...
+if length(tour0) == 1
+    gamma = tour0{1};
+    grid = grid2D(fprint0, olapx, olapy, gamma, roi);
+end
+
 % 2D grid discretization and setting coverage path's sense of sweeping
 while isempty(grid) && length(tour0) > 1
     gamma_old = tour0{1};

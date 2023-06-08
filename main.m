@@ -64,6 +64,11 @@ roi{3} = [-55   20;
           -85  -20;
           -55  -20;]; % roi of roi polygon
 
+% roi{3} = [-70   20;
+%           -95   20;
+%           -95  -20;
+%           -70  -20;]; % roi of roi polygon
+
 inittime{3} = cspice_str2et('1998 MAR 29 14:04:00.000 TDB'); % closest approach
 regions{3} = 'Tara Regio';
 
@@ -129,15 +134,17 @@ for i=1:length(regions)
     plot(ax, polyshape(x, y), 'FaceColor', 'none', 'EdgeColor', ...
         map(i, :), 'linewidth', 2)
 end
-legend(regions, 'AutoUpdate', 'off')
+legend(regions, 'AutoUpdate', 'off', 'location', 'northwest')
 
 %% Mosaic algorithms
-%v2 = VideoWriter('topography_map_sidewinder', 'MPEG-4');
-%v2.FrameRate = 2;
-%open(v2)
-%writeVideo(v2, getframe(gcf));
+if videosave
+    v2 = VideoWriter('topography_map_sidewinder', 'MPEG-4');
+    v2.FrameRate = 2;
+    open(v2)
+    writeVideo(v2, getframe(gcf));
+end
 obsDic = dictionary();
-for i=1:1
+for i=5:5
     %     if abs(min(roi{i}(:, 1)) -  max(roi{i}(:, 1))) > 180
 %         xlim([175  180])
 %         ylim([min(roi{i}(:, 2)) - 10  max(roi{i}(:, 2)) + 10])
@@ -188,12 +195,12 @@ set(gca, 'xlim', [-180 180], 'ylim', [-90 90])
 %close(v2);
 
 % Analyze metrics
-emnang    = zeros(1, length(fplist));
-illzntang = zeros(1, length(fplist));
-phsang    = zeros(1, length(fplist));
+%emnang    = zeros(1, length(fplist));
+%illzntang = zeros(1, length(fplist));
+%phsang    = zeros(1, length(fplist));
 et        = zeros(1, length(fplist));
-obsvec    = zeros(3, length(fplist));
-illvec    = zeros(3, length(fplist));
+%obsvec    = zeros(3, length(fplist));
+%illvec    = zeros(3, length(fplist));
 meanres   = zeros(1, length(fplist));
 ifov = 10e-6;  % ifov resolution [rad/px], retrieved from [Carr1995]
 for j=1:length(regions)
@@ -202,13 +209,13 @@ for j=1:length(regions)
     for i=1:length(fplist)
         et(i) = fplist(i).t;
         srfpoint = [fplist(i).olon, fplist(i).olat];
-        emnang(i)    = emissionang(srfpoint, et(i), fplist(i).target, ...
-            fplist(i).sc);
-        illzntang(i) = illzenithang(srfpoint, et(i), fplist(i).target);
-        phsang(i)    = phaseang(srfpoint, et(i), fplist(i).target, ...
-            fplist(i).sc);
-        obsvec(:, i) = trgobsvec(srfpoint, et(i), fplist(i).target, fplist(i).sc);
-        illvec(:, i) = trgillvec(srfpoint, et(i), fplist(i).target);
+        % emnang(i)    = emissionang(srfpoint, et(i), fplist(i).target, ...
+        %     fplist(i).sc);
+        % illzntang(i) = illzenithang(srfpoint, et(i), fplist(i).target);
+        % phsang(i)    = phaseang(srfpoint, et(i), fplist(i).target, ...
+        %     fplist(i).sc);
+        % obsvec(:, i) = trgobsvec(srfpoint, et(i), fplist(i).target, fplist(i).sc);
+        % illvec(:, i) = trgillvec(srfpoint, et(i), fplist(i).target);
 
         % compute resolution
         meanres(i) = pointres(ifov, srfpoint, et(i), fplist(i).target, ...
@@ -219,39 +226,39 @@ for j=1:length(regions)
     obsDic(regions{j}) = {fplist};
 end
 
-figure
-plot(et, emnang, '+:', 'linewidth', 1)
-hold on; box on; axis tight; grid minor;
-plot(et, illzntang, '+:', 'linewidth', 1)
-plot(et, phsang, '+:', 'linewidth', 1)
-legend('emission angle', 'illumination angle', 'phase angle', 'location', 'best')
-xlabel('Time [seconds past J2000]')
-ylabel('Angle [deg]')
-set(gca, 'fontsize', 18)
-
-figure
-plot(et, vecnorm(obsvec), '+:', 'linewidth', 1)
-hold on; box on; axis tight; grid minor;
-xlabel('Time [seconds past J2000]')
-ylabel('Distance [km]')
-title('Surface point - observer distance')
-set(gca, 'fontsize', 18)
-
-figure
-plot(et, vecnorm(illvec), '+:', 'linewidth', 1)
-hold on; box on; axis tight; grid minor;
-xlabel('Time [seconds past J2000]')
-ylabel('Distance [km]')
-title('Surface point - Sun distance')
-set(gca, 'fontsize', 18)
-
-figure
-plot(et, meanres, '+:', 'linewidth', 1)
-hold on; box on; axis tight; grid minor;
-title('Resolution evolution')
-xlabel('Time [seconds past J2000]')
-ylabel('Resolution [km/px]')
-set(gca, 'fontsize', 18)
+% figure
+% plot(et, emnang, '+:', 'linewidth', 1)
+% hold on; box on; axis tight; grid minor;
+% plot(et, illzntang, '+:', 'linewidth', 1)
+% plot(et, phsang, '+:', 'linewidth', 1)
+% legend('emission angle', 'illumination angle', 'phase angle', 'location', 'best')
+% xlabel('Time [seconds past J2000]')
+% ylabel('Angle [deg]')
+% set(gca, 'fontsize', 18)
+% 
+% figure
+% plot(et, vecnorm(obsvec), '+:', 'linewidth', 1)
+% hold on; box on; axis tight; grid minor;
+% xlabel('Time [seconds past J2000]')
+% ylabel('Distance [km]')
+% title('Surface point - observer distance')
+% set(gca, 'fontsize', 18)
+% 
+% figure
+% plot(et, vecnorm(illvec), '+:', 'linewidth', 1)
+% hold on; box on; axis tight; grid minor;
+% xlabel('Time [seconds past J2000]')
+% ylabel('Distance [km]')
+% title('Surface point - Sun distance')
+% set(gca, 'fontsize', 18)
+% 
+% figure
+% plot(et, meanres, '+:', 'linewidth', 1)
+% hold on; box on; axis tight; grid minor;
+% title('Resolution evolution')
+% xlabel('Time [seconds past J2000]')
+% ylabel('Resolution [km/px]')
+% set(gca, 'fontsize', 18)
 
 % Footprint resolution visualization
 maxres = -inf;

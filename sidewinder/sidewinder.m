@@ -83,6 +83,11 @@ while ~exit && t < endTime
     [gamma(1), gamma(2)] = centroid(polyshape(roi(:,1),roi(:,2)));
     fprintc = footprint(gamma(1), gamma(2), t, inst, sc, target, ...
         theta);   % centroid footprint
+    % If the footprint contains the limb, the centroid of the footprint
+    % might not coincide with the camera's boresight projection
+    if fprintc.limb
+        gamma(1) = fprintc.clon; gamma(2) = fprintc.clat;
+    end
     
     % Initialize struct that saves footprints (sub-structs)
     if t == startTime
