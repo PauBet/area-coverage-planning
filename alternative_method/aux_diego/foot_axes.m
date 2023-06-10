@@ -8,10 +8,10 @@ function [theta, x_foot, y_foot] = foot_axes(zerofootprint,steps_zero)
 
     % Compute the mean points on the 4 sides of the footprint
     
-    mean_p1 = 0.5*[zerofootprint(1,1+steps_zero)+zerofootprint(1,1), zerofootprint(2,1+steps_zero)+zerofootprint(2,1)];
-    mean_p2 = 0.5*[zerofootprint(1,1+2*steps_zero)+zerofootprint(1,1+steps_zero), zerofootprint(2,1+2*steps_zero)+zerofootprint(2,1+steps_zero)];
-    mean_p3 = 0.5*[zerofootprint(1,1+3*steps_zero)+zerofootprint(1,1+2*steps_zero), zerofootprint(2,1+3*steps_zero)+zerofootprint(2,1+2*steps_zero)];
-    mean_p4 = 0.5*[zerofootprint(1,1+4*steps_zero)+zerofootprint(1,1+3*steps_zero), zerofootprint(2,1+4*steps_zero)+zerofootprint(2,1+3*steps_zero)];
+    mean_p1 = 0.5*[zerofootprint(1,54)+zerofootprint(1,154), zerofootprint(2,54)+zerofootprint(2,154)];
+    mean_p2 = 0.5*[zerofootprint(1,154)+zerofootprint(1,254), zerofootprint(2,154)+zerofootprint(2,254)];
+    mean_p3 = 0.5*[zerofootprint(1,254)+zerofootprint(1,354), zerofootprint(2,254)+zerofootprint(2,354)];
+    mean_p4 = 0.5*[zerofootprint(1,354)+zerofootprint(1,54), zerofootprint(2,354)+zerofootprint(2,54)];
     
     % Estimate the footprint principal axes
     
