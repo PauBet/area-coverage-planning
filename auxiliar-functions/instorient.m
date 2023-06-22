@@ -40,7 +40,7 @@ method = 'ELLIPSOID'; % assumption: ray intercept function is going to
 % model the target body as a tri-axial ellipsoid
 [~, targetframe, ~] = cspice_cnmfrm(target); % target frame ID in SPICE
 abcorr = 'LT'; % one-way light time aberration correction parameter.
-[~, ~, boresight, bounds] = ...
+[~, instframe, boresight, bounds] = ...
     cspice_getfov(cspice_bodn2c(inst), 4); % instrument FOV's boundary
     % vectors in the instrument frame
 fovbounds = zeros(3, length(bounds));
@@ -49,6 +49,15 @@ lon = lon*cspice_rpd; lat = lat*cspice_rpd;
 visible = false;
 
 %% Instrument orientation calculation
+%inst2tgt = cspice_pxform(instframe, targetframe, t);
+[~, etto, ~, ~] = cspice_sincpt(method, target, t,...
+    targetframe, 'CN+S', sc, instframe, boresight);
+inst2tgt = cspice_pxfrm2(instframe, targetframe, t, etto);
+for i=1:length(bounds) % rotate from instrument to target frame
+    bounds(:, i) = inst2tgt*bounds(:, i);
+end
+boresight = inst2tgt*boresight;
+
 recpoint = cspice_srfrec(cspice_bodn2c(target), lon, lat); % rectangular
 % coordinates of the target point in the body-fixed reference frame
 instpos  = cspice_spkpos(sc, t, targetframe, abcorr, target); % rectangular
@@ -61,12 +70,12 @@ if dot(v2, recpoint) > 0 % check if the point is visible as seen from the
 else
     visible = true;
 end
-rotAxis = normalize(cross(v2, [0,0,1]'), 'norm'); % rotation axis over 
+rotAxis = normalize(cross(v2, boresight), 'norm'); % rotation axis over 
 % which the instrument pointing has to be rotated, i.e.
 % the cross vector of the body-fixed uz and the final pointing vector (v2)
-angle = cspice_vsep(v2, [0,0,1]'); % phase that has to be rotated from one
+angle = cspice_vsep(v2, boresight); % phase that has to be rotated from one
 % vector to the other
-rotmat = cspice_axisar(rotAxis, -angle); % first rotation matrix 
+rotmat = cspice_axisar(rotAxis, -angle); % rotation matrix 
 rz = cspice_rotate(-theta, 3); % theta rotation (DOF)
 rotmat = rotmat*rz; % final rotation matrix
 for i=1:length(bounds)
@@ -74,5 +83,9 @@ for i=1:length(bounds)
     % vectors in the target frame (bounds)
 end
 boresight = rotmat*boresight;
+
+% pointing rotation matrix (and transformation from instrument frame to
+% target frame coordinates)
+rotmat = rotmat*inst2tgt;
 
 end

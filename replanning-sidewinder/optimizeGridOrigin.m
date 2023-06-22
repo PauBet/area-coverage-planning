@@ -17,7 +17,8 @@ function [grid, gamma] = optimizeGridOrigin(gamma0, fp0, olapx, olapy, ...
 % Programmers:  Paula Betriu (UPC/ESEIAAT)
 % Date:         09/2022
 % 
-% Usage:        tour = planSidewinderTour(closestSide, roi, fprint0, gamma)
+% Usage:        [grid, gamma] = optimizeGridOriginv2(gamma0, fp0, olapx, 
+%    olapy, roi, dir, cside)
 %
 % Inputs:
 %   > gamma0:       origin of the grid, in latitudinal coordinates, in deg
@@ -52,22 +53,29 @@ delta = [0 0]; % array that defines the displacement of the grid
 deltax = 0.1*fp0.sizex; % displacement value in x direction
 deltay = 0.1*fp0.sizey; % displacement value in y direction
 
-% if the grid is not optimal nor the displacement value has not reached its
+% while the grid is not optimal nor the displacement value has reached its
 % maximum yet...
-while ~opt && abs(gamma(1) - gamma0(1)) <= fp0.sizex/2 && ...
-        abs(gamma(2) - gamma0(2)) <= fp0.sizey/2
+grid = [];
+while ~opt && abs(gamma(1) - gamma0(1)) <= fp0.sizex/4 && ...
+        abs(gamma(2) - gamma0(2)) <= fp0.sizey/4
 
     % Discretize the non-covered roi space (flood-fill), seeded with gamma
     gamma = gamma + delta;
     [grid, dirx, diry] = grid2D(fp0, olapx, olapy, gamma, roi);
 
-    % Check...
+    % In case the original gamma0 was outside the roi's area (and its 
+    % allocated cell was inferior to the estabished threshold in order to
+    % add it to the grid) -> move gamma towards the centroid to optimize
+    % its area coverage
     if isempty(grid)
-        gamma = gamma + [deltax deltay];
+        [cx, cy] = centroid(polyshape(roi(:, 1), roi(:, 2)));
+        dirc = [cx - gamma0(1), cy - gamma0(2)];
+        dirc = dirc/norm(dirc);
+        delta = delta + [deltax*dirc(1), deltay*dirc(2)];
         continue
     end
 
-    % The grid shifting may go in both directions (dirx and diry) and, 
+    % The grid shifting may go in both directions (dirx and diry) and,
     % in that case, is accumulative
     delta = [0 0];
     
@@ -87,15 +95,15 @@ while ~opt && abs(gamma(1) - gamma0(1)) <= fp0.sizex/2 && ...
                 if strcmp(cside, 'down') % spacecraft is towards roi's
                     % bottom
                     if ind_row > 1 && any(cellfun(@any, ...
-                            grid(1:(ind_row - 1), :)), 'all')
+                            grid(ind_row - 1, :)), 'all')
 
                         % Move the grid "upwards"
                         delta = delta + deltay*diry;
-
                     end
+
                 else % spacecraft is towards roi's top
                     if ind_row < size(grid, 1) && any(cellfun(@any, ...
-                            grid((ind_row + 1):end, :)), 'all') 
+                            grid(ind_row + 1, :)), 'all') 
                         
                         % Move the grid "downwards"
                         delta = delta - deltay*diry;
@@ -104,36 +112,18 @@ while ~opt && abs(gamma(1) - gamma0(1)) <= fp0.sizex/2 && ...
                 
                 % X direction
                 if dir % tour is moving to the right (left -> right dir.)
-                    if ind_col > 1 
+                    if ind_col > 1 && any(cellfun(@any, grid(ind_row, ...
+                            ind_col - 1)), 'all')
 
-                        cond1 = isequal(cside, 'down') && ...
-                            any(cellfun(@any, grid(1:ind_row, ...
-                            1:(ind_col - 1))), 'all');
-
-                        cond2 = isequal(cside, 'up') && ...
-                            any(cellfun(@any, grid(ind_row:end, ...
-                            1:(ind_col - 1))), 'all');
-
-                        if cond1 || cond2
-                            % Move the grid "leftwards"
-                            delta = delta - deltax*dirx;
-                        end
+                        % Move the grid "leftwards"
+                        delta = delta - deltax*dirx;
                     end
                 else % tour is moving to the left (right -> left dir.)
-                    if ind_col < size(grid, 2)
+                    if ind_col < size(grid, 2) && any(cellfun(@any, ...
+                            grid(ind_row, ind_col + 1)), 'all')
 
-                        cond1 = isequal(cside, 'down') && ...
-                            any(cellfun(@any, grid(1:ind_row, ...
-                            (ind_col + 1):end)), 'all');
-
-                        cond2 = isequal(cside, 'up') && ...
-                            any(cellfun(@any, grid(ind_row:end, ...
-                            (ind_col + 1):end)), 'all');
-                        
-                        if cond1 || cond2
-                            % Move the grid "rightwards"
-                            delta = delta + deltax*dirx;
-                        end
+                        % Move the grid "rightwards"
+                        delta = delta + deltax*dirx;
                     end
                 end
 
@@ -142,14 +132,14 @@ while ~opt && abs(gamma(1) - gamma0(1)) <= fp0.sizex/2 && ...
                 % X direction
                 if strcmp(cside, 'right')
                     if ind_col > 1 && any(cellfun(@any, ...
-                            grid(:, 1:(ind_col - 1))), 'all')
+                            grid(:, ind_col - 1)), 'all')
 
                         % Move the grid leftwards
                         delta = delta - deltax*dirx;
                     end
                 else
                     if ind_col < size(grid, 2) && any(cellfun(@any, ...
-                            grid(:, (ind_col + 1):end)), 'all')
+                            grid(:, ind_col + 1)), 'all')
                         
                         % Move the grid rightwards
                         delta = delta + deltax*dirx;
@@ -158,44 +148,27 @@ while ~opt && abs(gamma(1) - gamma0(1)) <= fp0.sizex/2 && ...
                 
                 % Y direction
                 if dir % downsweep = true. tour is moving to the bottom
-                    if ind_row > 1
+                    if ind_row > 1 && any(cellfun(@any, ...
+                            grid(ind_row - 1, ind_col)), 'all')
 
-                        cond1 = isequal(cside, 'right') && ...
-                            any(cellfun(@any, grid(1:(ind_row - 1), ...
-                            1:ind_col)), 'all');
-
-                        cond2 = isequal(cside, 'left') && ...
-                            any(cellfun(@any, grid(1:(ind_row - 1), ...
-                            ind_col:end)), 'all');
-                        
-                        if cond1 || cond2
-                            % Move the grid upwards
-                            delta = delta + deltay*diry;
-                        end
+                        % Move the grid upwards
+                        delta = delta + deltay*diry;
                     end
                 else % tour is moving to the top
-                    if ind_row < size(grid, 1)
+                    if ind_row < size(grid, 1) && any(cellfun(@any, ...
+                            grid(ind_row + 1, ind_col)), 'all')
 
-                        cond1 = isequal(cside, 'right') && ...
-                            any(cellfun(@any, grid((ind_row + 1):end, ...
-                            1:ind_col)), 'all');
-
-                        cond2 = isequal(cside, 'left') && ...
-                            any(cellfun(@any, grid((ind_row + 1):end, ...
-                            ind_col:end)), 'all');
-
-                        if cond1 || cond2
-                            % Move the grid downwards
-                            delta = delta - deltay*diry;
-                        end
+                        % Move the grid downwards
+                        delta = delta - deltay*diry;
                     end
                 end
         end
     end
 
-    % If delta = [0 0], no taboo tiles were found
+    % If delta = [0 0], no taboo tiles (worth correcting) were found
     if norm(delta) == 0
         opt = true;
+        gamma0 = gamma;
     end
 end
 
@@ -203,169 +176,164 @@ if isempty(grid)
     return;
 end
 
-% if delta has reached its maximum and, yet, grid still has taboo tiles
-% (opt = false), then we simply delete those taboo tiles.. at the expense
-% of potential uncovered area
-if ~opt
-    grid = grid2D(fp0, olapx, olapy, gamma0, roi);
+% Check if there are any taboo tiles that should be deleted... (at the
+% expense of potential uncovered area)
+% This matrix points at the taboo tiles of grid (taboo_idx(i, j) = 1 if
+% there is a taboo tile at element [i, j] of the grid)
+taboo_idx = zeros(size(grid));
 
-    % This matrix points at the taboo tiles of grid (taboo_idx(i, j) = 1 if
-    % there is a taboo tile at element [i, j] of the grid)
-    taboo_idx = zeros(size(grid));
+switch cside
+    case {'up', 'down'} % horizontal sweep
 
-    % Find which position does gamma occupy in this grid
-    for i=1:numel(grid)
-        if ~isempty(grid{i}) && norm(grid{i} - gamma0') < 1e-3
-            [ind_row, ind_col] = ind2sub(size(grid), i);
-            break;
+        if strcmp(cside, 'down') % spacecraft is towards roi's
+            % bottom
+            if ind_row > 1 && any(cellfun(@any, ...
+                    grid(1:(ind_row - 1), :)), 'all')
+
+                % Mark the taboo tile at the taboo_idx matrix
+                [row, col] = find(~cellfun(@isempty, ...
+                    grid(1:(ind_row - 1), :)));
+                taboo_idx(row, col) = 1;
+            end
+        else % spacecraft is towards roi's top
+            if ind_row < size(grid, 1) && any(cellfun(@any, ...
+                    grid((ind_row + 1):end, :)), 'all')
+
+                % Mark the taboo tile at the taboo_idx matrix
+                [row, col] = find(~cellfun(@isempty, ...
+                    grid((ind_row + 1):end, :)));
+                row = row + ind_row; % adjust row indices to be
+                % relative to the entire grid
+                taboo_idx(row, col) = 1;
+            end
         end
-    end
 
-    switch cside
-        case {'up', 'down'} % horizontal sweep
-
-            if strcmp(cside, 'down') % spacecraft is towards roi's
-                % bottom
-                if ind_row > 1 && any(cellfun(@any, ...
-                        grid(1:(ind_row - 1), :)), 'all')
+        if dir % tour is moving to the right (left -> right dir.)
+            if ind_col > 1
+                if isequal(cside, 'down') && any(cellfun(@any, ...
+                        grid(1:ind_row, 1:(ind_col - 1))), 'all')
 
                     % Mark the taboo tile at the taboo_idx matrix
                     [row, col] = find(~cellfun(@isempty, ...
-                        grid(1:(ind_row - 1), :)));
+                        grid(1:ind_row, 1:(ind_col - 1))));
                     taboo_idx(row, col) = 1;
-                end
-            else % spacecraft is towards roi's top
-                if ind_row < size(grid, 1) && any(cellfun(@any, ...
-                        grid((ind_row + 1):end, :)), 'all')
+                elseif isequal(cside, 'up') && any(cellfun(@any, ...
+                        grid(ind_row:end, 1:(ind_col - 1))), 'all')
 
                     % Mark the taboo tile at the taboo_idx matrix
                     [row, col] = find(~cellfun(@isempty, ...
-                        grid((ind_row + 1):end, :)));
-                    row = row + ind_row; % adjust row indices to be
+                        grid(ind_row:end, 1:(ind_col - 1))));
+                    row = row + ind_row - 1; % adjust row indices to be
                     % relative to the entire grid
                     taboo_idx(row, col) = 1;
                 end
             end
-
-            if dir % tour is moving to the right (left -> right dir.)
-                if ind_col > 1
-                    if isequal(cside, 'down') && any(cellfun(@any, ...
-                            grid(1:ind_row, 1:(ind_col - 1))), 'all')
-
-                        % Mark the taboo tile at the taboo_idx matrix
-                        [row, col] = find(~cellfun(@isempty, ...
-                            grid(1:ind_row, 1:(ind_col - 1))));
-                        taboo_idx(row, col) = 1;
-                    elseif isequal(cside, 'up') && any(cellfun(@any, ...
-                            grid(ind_row:end, 1:(ind_col - 1))), 'all')
-
-                        % Mark the taboo tile at the taboo_idx matrix
-                        [row, col] = find(~cellfun(@isempty, ...
-                            grid(ind_row:end, 1:(ind_col - 1))));
-                        row = row + ind_row - 1; % adjust row indices to be
-                        % relative to the entire grid
-                        taboo_idx(row, col) = 1;
-                    end
-                end
-            else % tour is moving to the left (right -> left dir.)
-                if ind_col < size(grid, 2)
-                    if isequal(cside, 'down') && any(cellfun(@any, ...
-                            grid(1:ind_row, (ind_col + 1):end)), 'all')
-
-                        % Mark the taboo tile at the taboo_idx matrix
-                        [row, col] = find(~cellfun(@isempty, ...
-                            grid(1:ind_row, (ind_col + 1):end)));
-                        col = col + ind_col; % adjust column indices to
-                        % be relative to the entire grid
-                        taboo_idx(row, col) = 1;
-                    elseif isequal(cside, 'up') && any(cellfun(@any, ...
-                            grid(ind_row:end, (ind_col + 1):end)), 'all')
-
-                        % Mark the taboo tile at the taboo_idx matrix
-                        [row, col] = find(~cellfun(@isempty, ...
-                            grid(ind_row:end, (ind_col + 1):end)));
-                        col = col + ind_col; % adjust column indices to
-                        % be relative to the entire grid
-                        row = row + ind_row - 1; % adjust row indices
-                        % to be relative to the entire grid
-                        taboo_idx(row, col) = 1;
-                    end
-
-                end
-            end
-
-        case {'right', 'left'} % vertical sweep
-
-            if strcmp(cside, 'right')
-                if ind_col > 1 && any(cellfun(@any, ...
-                        grid(:, 1:(ind_col - 1))), 'all')
+        else % tour is moving to the left (right -> left dir.)
+            if ind_col < size(grid, 2)
+                if isequal(cside, 'down') && any(cellfun(@any, ...
+                        grid(1:ind_row, (ind_col + 1):end)), 'all')
 
                     % Mark the taboo tile at the taboo_idx matrix
                     [row, col] = find(~cellfun(@isempty, ...
-                        grid(:, 1:(ind_col - 1))));
-                    taboo_idx(row, col) = 1;
-                end
-            else
-                if ind_col < size(grid, 2) && any(cellfun(@any, ...
-                        grid(:, (ind_col + 1):end)), 'all')
-
-                    % Mark the taboo tile at the taboo_idx matrix
-                    [row, col] = find(~cellfun(@isempty, ...
-                        grid(:, (ind_col + 1):end)));
+                        grid(1:ind_row, (ind_col + 1):end)));
                     col = col + ind_col; % adjust column indices to
                     % be relative to the entire grid
                     taboo_idx(row, col) = 1;
+                elseif isequal(cside, 'up') && any(cellfun(@any, ...
+                        grid(ind_row:end, (ind_col + 1):end)), 'all')
+
+                    % Mark the taboo tile at the taboo_idx matrix
+                    [row, col] = find(~cellfun(@isempty, ...
+                        grid(ind_row:end, (ind_col + 1):end)));
+                    col = col + ind_col; % adjust column indices to
+                    % be relative to the entire grid
+                    row = row + ind_row - 1; % adjust row indices
+                    % to be relative to the entire grid
+                    taboo_idx(row, col) = 1;
+                end
+
+            end
+        end
+
+    case {'right', 'left'} % vertical sweep
+
+        if strcmp(cside, 'right')
+            if ind_col > 1 && any(cellfun(@any, ...
+                    grid(:, 1:(ind_col - 1))), 'all')
+
+                % Mark the taboo tile at the taboo_idx matrix
+                [row, col] = find(~cellfun(@isempty, ...
+                    grid(:, 1:(ind_col - 1))));
+                taboo_idx(row, col) = 1;
+            end
+        else
+            if ind_col < size(grid, 2) && any(cellfun(@any, ...
+                    grid(:, (ind_col + 1):end)), 'all')
+
+                % Mark the taboo tile at the taboo_idx matrix
+                [row, col] = find(~cellfun(@isempty, ...
+                    grid(:, (ind_col + 1):end)));
+                col = col + ind_col; % adjust column indices to
+                % be relative to the entire grid
+                taboo_idx(row, col) = 1;
+            end
+        end
+
+        if dir % downsweep = true. tour is moving to the bottom
+            if ind_row > 1
+                if isequal(cside, 'right') && ...
+                        any(cellfun(@any, grid(1:(ind_row - 1), ...
+                        1:ind_col)), 'all')
+
+                    % Mark the taboo tile at the taboo_idx matrix
+                    [row, col] = find(~cellfun(@isempty, ...
+                        grid(1:(ind_row - 1), 1:ind_col)));
+                    taboo_idx(row, col) = 1;
+
+                elseif isequal(cside, 'left') && ...
+                        any(cellfun(@any, grid(1:(ind_row - 1), ...
+                        ind_col:end)), 'all')
+
+                    % Mark the taboo tile at the taboo_idx matrix
+                    [row, col] = find(~cellfun(@isempty, ...
+                        grid(1:(ind_row - 1), ind_col:end)));
+                    col = col + ind_col - 1;
+                    taboo_idx(row, col) = 1;
                 end
             end
+        else % tour is moving to the top
+            if ind_row < size(grid, 1)
 
-            if dir % downsweep = true. tour is moving to the bottom
-                if ind_row > 1
-                    if isequal(cside, 'right') && ...
-                            any(cellfun(@any, grid(1:(ind_row - 1), ...
-                            1:ind_col)), 'all')
+                if isequal(cside, 'right') && ...
+                        any(cellfun(@any, grid((ind_row + 1):end, ...
+                        1:ind_col)), 'all')
 
-                        % Mark the taboo tile at the taboo_idx matrix
-                        [row, col] = find(~cellfun(@isempty, ...
-                            grid(1:(ind_row - 1), 1:ind_col)));
-                        taboo_idx(row, col) = 1;
+                    % Mark the taboo tile at the taboo_idx matrix
+                    [row, col] = find(~cellfun(@isempty, ...
+                        grid((ind_row + 1):end, 1:ind_col)));
+                    row = ind_row + row;
+                    taboo_idx(row, col) = 1;
+                elseif isequal(cside, 'left') && ...
+                        any(cellfun(@any, grid((ind_row + 1):end, ...
+                        ind_col:end)), 'all')
 
-                    elseif isequal(cside, 'left') && ...
-                            any(cellfun(@any, grid(1:(ind_row - 1), ...
-                            ind_col:end)), 'all')
-
-                        % Mark the taboo tile at the taboo_idx matrix
-                        [row, col] = find(~cellfun(@isempty, ...
-                            grid(1:(ind_row - 1), ind_col:end)));
-                        col = col + ind_col - 1;
-                        taboo_idx(row, col) = 1;
-                    end
-                end
-            else % tour is moving to the top
-                if ind_row < size(grid, 1)
-
-                    if isequal(cside, 'right') && ...
-                            any(cellfun(@any, grid((ind_row + 1):end, ...
-                            1:ind_col)), 'all')
-                        
-                        % Mark the taboo tile at the taboo_idx matrix
-                        [row, col] = find(~cellfun(@isempty, ...
-                            grid((ind_row + 1):end, 1:ind_col)));
-                        row = ind_row + row;
-                        taboo_idx(row, col) = 1;
-                    elseif isequal(cside, 'left') && ...
-                            any(cellfun(@any, grid((ind_row + 1):end, ...
-                            ind_col:end)), 'all')
-
-                        % Mark the taboo tile at the taboo_idx matrix
-                        [row, col] = find(~cellfun(@isempty, ...
-                            grid((ind_row + 1):end, 1:ind_col)));
-                        row = ind_row + row;
-                        col = ind_col + col - 1;
-                        taboo_idx(row, col) = 1;
-                    end
+                    % Mark the taboo tile at the taboo_idx matrix
+                    [row, col] = find(~cellfun(@isempty, ...
+                        grid((ind_row + 1):end, ind_col:end)));
+                    row = ind_row + row;
+                    col = ind_col + col - 1;
+                    taboo_idx(row, col) = 1;
                 end
             end
-    end
-    grid(taboo_idx == 1) = {[]};
+        end
 end
+
+% Delete taboo tiles
+grid(taboo_idx == 1) = {[]};
+
+% After deleting the taboo tiles, check if there are empty rows and/or
+% columns and erase those from the grid...
+empty_rows    = all(cellfun('isempty', grid), 2);
+empty_columns = all(cellfun('isempty', grid), 1);
+grid(empty_rows, :) = []; grid(:, empty_columns) = [];
 end

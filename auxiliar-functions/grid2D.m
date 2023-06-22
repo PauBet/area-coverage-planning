@@ -1,7 +1,8 @@
 function [matrixGrid, dirx, diry] = grid2D(fpref, ovlapx, ovlapy, ...
     gamma, targetArea)
-% Flood-fill grid discretization of the region-of-interest given a 
-% footprint reference's size and orientation
+% Grid discretization (using flood-fill algorithm) of a region of interest
+% given a reference footprint (unit measure to create the allocatable
+% cells)
 %
 % Programmers:  Paula Betriu (UPC/ESEIAAT)
 % Date:         10/2022
@@ -15,12 +16,12 @@ function [matrixGrid, dirx, diry] = grid2D(fpref, ovlapx, ovlapy, ...
 %      # sizex:     footprint size in the x direction (longitude), in deg
 %      # sizey:     footprint size in the y direction (latitude), in deg
 %                   See function 'footprint' for further information.
-%   > olapx:        grid footprint overlap in the x direction (longitude),
-%                   in percentage
-%   > olapy:        grid footprint overlap in the y direction (latitude),
-%                   in percentage
+%   > olapx:        grid footprint overlap in the x direction, in 
+%                   percentage
+%   > olapy:        grid footprint overlap in the y direction, in 
+%                   percentage
 %   > targetArea:   matrix containing the vertices of the ROI polygon. The
-%                   vertex points are expressed in 2D. 
+%                   vertex points are expressed in 2D.
 %       # targetArea(:,1) correspond to the x values of the vertices
 %       # targetArea(:,2) correspond to the y values of the vertices
 % 
@@ -30,35 +31,23 @@ function [matrixGrid, dirx, diry] = grid2D(fpref, ovlapx, ovlapy, ...
 %                   Each point is defined by the instrument boresight
 %                   projection onto the body surface, in latitudinal
 %                   coordinates [lon lat], in deg
+% The matrix sorts the discretized points (flood-fill) by latitude and
+% longitude according to the following structure:
+%
+%               longitude
+%               (-) --------> (+)                   
+%  latitude (+) [a11]  [a12] ⋯
+%            ¦  [a21]
+%            ¦    ⋮
+%            ∨
+%           (-)   
 
 % Pre-allocate variables
-gridPoints = [];
 matrixGrid = {};
-dirx = [];
-diry = [];
-
-% Get the footprint bounding box
-bbox  = smallestBoundingBox(fpref.bvertices(:, 1), fpref.bvertices(:, 2));
 
 % Get the footprint angle, i.e., the angle that the 2D footprint forms with
 % respect to the meridian-equator axes
-%% Problema: quan les footprints són bastant quadrades... 
-% smallestBoundingBox només obtè una aproximació del poligon regular que
-% envolta la footprint. Així doncs, si les footprints tenen dimensions x i
-% y molt similars però no iguals, pot ser que l'angle de la bbox sigui en
-% una iteració prèvia el d'una direcció (e.g. width) i en la següent
-% l'altra (e.g. height), això és un problema per a la discretització perquè
-% angle(height) - angle(width) = 90º, i això canvia enormement la grid (un
-% cop estem girant la roi un angle i el següent 90º +/-...)
-% Una manera de fer-ho: assumir que l'angle no canviarà gaire i, per tant,
-% mantenir-lo igual al de la primera iteració
-% No és gaire elegant... no ho podríem utilitzar per període de temps molt
-% llargs on l'angle de les conseqüents footprints canviaria molt, però pel
-% que necessitem ara... pot funcionar.
-% Una altra opció seria: projectar direcció x/y del fov i calcular l'angle
-% (de fet, és 'theta'... més endavant)
-persistent angle
-if isempty(angle), angle = deg2rad(bbox.angle); end
+angle = deg2rad(-fpref.angle);
 
 % Filling the region-of-interest (roi) with a footprint that is not aligned
 % with the meridian-equator axes is equivalent to filling the oriented
@@ -66,6 +55,9 @@ if isempty(angle), angle = deg2rad(bbox.angle); end
 % the region-of-interest to orient it according to the footprint
 rotmat = [cos(angle)   -sin(angle);
           sin(angle)   cos(angle)];
+% matrixGrid directions x and y
+dirx = rotmat(1, :);
+diry = rotmat(2, :);
 [cx, cy] = centroid(polyshape(targetArea(:,1), targetArea(:,2)));
 orientedArea  = zeros(length(targetArea), 2);
 for j=1:length(targetArea)
@@ -74,18 +66,33 @@ for j=1:length(targetArea)
 end
 gamma = [cx, cy]' + rotmat*(gamma' - [cx, cy]');
 
-% temporal
+% If the area is divided in smaller regions, then we get the convex polygon
+% that encloses all of them (flood-fill)
+aux(:, 1) = orientedArea(~isnan(orientedArea(:, 1)), 1); % convhull 
+% does not accept NaN nor Inf
+aux(:, 2) = orientedArea(~isnan(orientedArea(:, 2)), 2);
+k = convhull(aux(:, 1), aux(:, 2)); % boundary vertices that constitute the
+% convex polygon
+periArea(:, 1) = aux(k, 1);
+periArea(:, 2) = aux(k, 2);
+
+% Auxiliary figure
 % figure
 % hold on;
 % plot(polyshape(orientedArea(:,1), orientedArea(:,2)))
 % plot(gamma(1), gamma(2), 'r*')
+% plot(polyshape(periArea(:, 1), periArea(:, 2)), 'FaceColor', 'none')
+% drawnow
 
 % Flood-fill algorithm to get the grid points of the oriented roi
-gridPoints = floodFillAlgorithm(bbox.size1, bbox.size2, ovlapx, ...
-    ovlapy, gamma, orientedArea, gridPoints, '8fill');
+% gridPoints = floodFillAlgorithmPar(fpref.sizex, fpref.sizey, ovlapx, ...
+%  ovlapy, gamma, orientedArea, gridPoints, '8fill');
+gridPoints = floodFillAlgorithm(fpref.sizex, fpref.sizey, ovlapx, ...
+ ovlapy, gamma, orientedArea, periArea, [], [], '4fill');
 
 if ~isempty(gridPoints)
-% Temp figure
+
+% Auxiliary figure
 % figure
 % plot(polyshape(targetArea(:,1), targetArea(:,2)))
 % hold on;
@@ -99,16 +106,7 @@ if ~isempty(gridPoints)
 % end
 % plot(orientedGridPoints(:,1), orientedGridPoints(:,2), 'r*')
 
-% Build a matrix that will sort the gridPoints elements by latitude and
-% longitude according to the following structure:
-%
-%               longitude
-%               (-) --------> (+)                   
-%  latitude (+) [a11]  [a12] ⋯
-%            ¦  [a21]
-%            ¦    ⋮
-%            ∨
-%           (-)             
+% Sort grid points          
 sortedGrid = sortrows(gridPoints, -2); % the elements of gridPoints are
 % sorted by latitude (+ to -)
 uniqueLat = unique(sortedGrid(:,2)); % get the different latitude values
@@ -137,10 +135,6 @@ for i=1:length(uniqueLat)
             % orientation
     end
 end
-
-% matrixGrid directions x and y
-dirx = rotmat(1, :);
-diry = rotmat(2, :);
 end
 
 end

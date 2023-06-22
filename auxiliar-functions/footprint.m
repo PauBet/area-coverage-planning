@@ -8,6 +8,7 @@ function fp = footprint(lon, lat, t, inst, sc, target, theta)
 % a set of scientific objectives. The spacecraft is assumed to be 3-axis 
 % steerable and, therefore, CK kernels of the spacecraft (past missions)
 % are avoided.
+%% IMPLEMENTAR MODE LOW-RESOLUTION
 %
 % Programmers:  Paula Betriu (UPC/ESEIAAT)
 % Date:         10/2022
@@ -59,28 +60,27 @@ function fp = footprint(lon, lat, t, inst, sc, target, theta)
 %                        poles.
 % 
 
-%% Print function (temp)
-fprintf('Calculating footprint at time %s...\n', cspice_et2utc(t, 'C', 0));
-
 %% Pre-allocate variables
-fp.inst = inst;
-fp.sc = sc;
-fp.target = target;
-fp.t = t;
+fp.inst      = inst;
+fp.sc        = sc;
+fp.target    = target;
+fp.t         = t;
 fp.bvertices = []; % footprint boundary vertices, in latitudinal 
 % coordinates, in deg
-fp.olon = lon; % longitude value of FOV boresight projection onto the body 
-% surface, in [deg]
-fp.olat = lat; % latitude value of FOV boresight projection onto the body 
-% surface, in [deg]
-fp.sizex = 0; % horizontal size (longitude) [deg]
-fp.sizey = 0; % vertical size (latitude) [deg]
+fp.olon      = lon; % longitude value of FOV boresight projection onto the 
+% body surface, in [deg]
+fp.olat      = lat; % latitude value of FOV boresight projection onto the 
+% body surface, in [deg]
+fp.sizex     = 0; % horizontal size (longitude) [deg]
+fp.sizey     = 0; % vertical size (latitude) [deg]
 fp.fovbsight = []; % FOV boresight in target frame centered at the 
 % spacecraft position
 fp.fovbounds = []; % FOV bounds in target frame centered at the spacecraft
 % position
 fp.poleIntercept = []; % determines if the footprint intercepts the north
 % pole (='north pole') or the south pole (='south pole')
+fp.limb      = false; % boolean that defines if the FOV projects onto the
+% planetary body's limb
 
 %% Parameters
 method = 'ELLIPSOID'; % assumption: ray intercept function is going to 
@@ -99,7 +99,7 @@ z = bounds(3,1); % z-coordinate of the boundary vectors
 [~, targetframe, ~] = cspice_cnmfrm(target); % target frame ID in SPICE
 abcorr = 'LT'; % one-way light time aberration correction parameter.
 % See cspice_spkpos for further information.
-N = 100; % footprint vertices resolution
+N = 200; % footprint vertices resolution
 recpoint = cspice_srfrec(cspice_bodn2c(target), lon, lat); % rectangular
 % coordinates of the target point in the body-fixed reference frame
 instpos  = cspice_spkpos(sc, t, targetframe, abcorr, target); % rectangular
@@ -128,15 +128,18 @@ for i=1:length(bounds)
     % If the FOV boundary does not intercept the target...
     if ~found
         irr = true;
-        fprintf('Limb intercept calculation...\n');
+        fp.limb = true;
         break;
     end
 end
 surfPoints = []; % matrix that saves the rectangular coordinates of the 
 % intercept points between the FOV perimeter and the body surface
-aminter = false; % anti-meridian intercept
 count = 0; % counter of found intercept points
 if irr
+    % Initialize variables
+    maxfx = minx; maxfy = miny;
+    minfx = maxx; minfy = maxy;
+
     % For those cases where the FOV does not completely contain the target,
     % a more refined search is going to be performed in order to define the
     % limits of the footprint
@@ -152,7 +155,7 @@ if irr
             % should not be a significant difference between the target and 
             % surface point correction locus (see cspice_tangpt)
             found = false; % found intercept
-            [aux, alt, ~, ~, ~, ~] = cspice_tangpt(method, target, t,...
+            [~, alt, ~, aux, ~, ~] = cspice_tangpt(method, target, t,...
                 targetframe, abcorr, corloc, sc, targetframe, vec);
             if alt < 10
                 % When the footprint contains the limb, its intercept is
@@ -181,6 +184,18 @@ if irr
                 % plane boundary...
                 count = count + 1;
                 surfPoints(count, :) = aux;
+
+                if y == miny
+                    minfy = miny;
+                elseif y == maxy
+                    maxfy = maxy;
+                end
+
+                if x == minx
+                    minfx = minx;
+                elseif x == maxx
+                    maxfx = maxx;
+                end
             elseif j>0 && found ~= old_found
                 % if the vector intercept status changes from the previous
                 % one, we're sweeping across the object's limb
@@ -192,6 +207,19 @@ if irr
                     surfPoints(count, :) = aux; % save the current 
                     % intercept
                 end
+
+                if x < minfx
+                    minfx = x;
+                end
+                if y < minfy
+                    minfy = y;
+                end
+                if x > maxfx
+                    maxfx = x;
+                end
+                if y > maxfy
+                    maxfy = y;
+                end
             end
 
             old_found = found; % save element intercept status
@@ -201,6 +229,7 @@ if irr
 else
     %The FOV projection is enclosed in the target surface
     boundPoints(:, end+1) = boundPoints(:, 1); % close polygon
+    % high resolution:
     for i=1:length(boundPoints)-1
         % linear (approximation) interpolation between vertices to define
         % the boundary of the footprint
@@ -213,6 +242,8 @@ else
             surfPoints(count, 3) = boundPoints(3, i) + v(3)*lambda(l); % z
         end
     end
+    % low resolution:
+    % surfPoints = boundPoints';
 end
 
 if isempty(surfPoints), return; end % the FOV does not intercept with the
@@ -301,90 +332,84 @@ end
 % consider the case where the footprint intercepts with the anti-meridian.
 % If it does, we split the footprint in two polygons, cleaved by the line
 % that the original footprint is crossing (a.m.)
-if find(diff(vertices(:,1)) >= 180), aminter = true; end % a.m. intercept
-if aminter && ~(spoleint || npoleint)
-    vertices = sortrows(vertices,1); % sort longitude values
-    ind = find(diff(vertices(:,1)) >= 180); % find the discontinuity index
-
-    % Add interpolated values at the anti-meridian to complete the polygons
-    seg1 = [vertices(1:ind, 1) vertices(1:ind, 2)];
-    m = sort(seg1(:,1));
-    ind1 = seg1(:,1) == m(1); ind2 = seg1(:,1) == m(2);
-    p1 = seg1(ind1, :); p2 = seg1(ind2, :);
-    x = linspace(p1(1), p2(1), 20);
-    y = linspace(p1(2), p2(2), 20);
-    seg1(end+1:end+length(x), :) = [x' y'];
-    
-    % Sort polygon vertices in clockwise order (since the 2D sorting
-    % algorithm does not work for concave polygons), let's use 3D...
-    % (inefficient, future work)
-    for i=1:length(seg1)
-        rectan(i, :) = cspice_srfrec(cspice_bodn2c(target), ...
-            seg1(i, 1)*cspice_rpd, seg1(i, 2)*cspice_rpd);
-    end
-    [a, b, c] = sortcw(rectan(:, 1), rectan(:, 2), rectan(:, 3));
-    for i=1:length(a)
-        [~, seg1(i, 1), seg1(i, 2)] = cspice_reclat([a(i), b(i), c(i)]');
-    end
-    seg1(:, 1) = seg1(:, 1)*cspice_dpr;
-    seg1(:, 2) = seg1(:, 2)*cspice_dpr;
-
-    % Add interpolated values at the anti-meridian to complete the polygons
-    seg2 = [vertices((ind + 1):size(vertices,1), 1) ...
-        vertices((ind + 1):size(vertices,1), 2)];
-    m = sort(seg2(:,1), 'descend');
-    ind1 = seg2(:,1) == m(1); ind2 = seg2(:,1) == m(2);
-    p1 = seg2(ind1, :); p2 = seg2(ind2, :);
-    x = linspace(p1(1), p2(1), 20);
-    y = linspace(p1(2), p2(2), 20);
-    seg2(end+1:end+length(x), :) = [x' y'];
-
-    % Sort polygon vertices in clockwise order (since the 2D sorting
-    % algorithm does not work for concave polygons), let's use 3D...
-    % (inefficient, future work)
-    for i=1:length(seg2)
-        rectan(i, :) = cspice_srfrec(cspice_bodn2c(target), ...
-            seg2(i, 1)*cspice_rpd, seg2(i, 2)*cspice_rpd);
-    end
-    [a, b, c] = sortcw(rectan(:, 1), rectan(:, 2), rectan(:, 3));
-    for i=1:length(a)
-        [~, seg2(i, 1), seg2(i, 2)] = cspice_reclat([a(i), b(i), c(i)]');
-    end
-    seg2(:, 1) = seg2(:, 1)*cspice_dpr;
-    seg2(:, 2) = seg2(:, 2)*cspice_dpr;
-
-    clear vertices;
-    vertices(1:length(seg1), :) = seg1;
-    vertices(length(seg1) + 1, :) = [NaN, NaN]; % save a NaN between 
-    % polygons to separate them
-    vertices((length(seg1) + 2):(length(seg1) + 1 + length(seg2)), 1) = ...
-        seg2(:, 1);
-    vertices((length(seg1) + 2):(length(seg1) + 1 + length(seg2)), 2) = ...
-        seg2(:, 2);
-end
+[fp.bvertices(:, 1), fp.bvertices(:, 2)] = amsplit(vertices(:,1),...
+    vertices(:,2)); % save footprint vertices
 
 %% Save outputs
-% Save footprint vertices
-fp.bvertices(:,1) = vertices(:,1);
-fp.bvertices(:,2) = vertices(:,2);
-
 % Save fov parameters
 fp.fovbounds = bounds; % save fov bounds in the body-fixed reference frame
-fp.boresight = pointingRotation*boresight; % save fov boresight vector in
+fp.boresight = boresight; % save fov boresight vector in
 % the body-fixed reference frame
 
 % Calculate and save footprint size
-if ~irr
-    [boundPoints(1,:), boundPoints(2,:), boundPoints(3,:)] = ...
-        sortcw(boundPoints(1,:), boundPoints(2,:), boundPoints(3,:));
-    
-    dirx = .5*(boundPoints(:,1) + boundPoints(:,2));
-    diry = .5*(boundPoints(:,2) + boundPoints(:,3));
+xaxis = [maxx, 0,    1]';
+yaxis = [0,    maxy, 1]';
+xaxis = pointingRotation*xaxis;
+yaxis = pointingRotation*yaxis;
 
-    fp.sizex = 2*cspice_vsep(recpoint, dirx)*cspice_dpr;
-    fp.sizey = 2*cspice_vsep(recpoint, diry)*cspice_dpr;
+if ~irr
+    [~, ~, ~, xpoint, ~, ~] = cspice_tangpt(method, target, t,...
+        targetframe, abcorr, 'SURFACE POINT', sc, targetframe, xaxis);
+    [~, ~, ~, ypoint, ~, ~] = cspice_tangpt(method, target, t,...
+        targetframe, abcorr, 'SURFACE POINT', sc, targetframe, yaxis);
+    
+    % If the footprint does not contain the limb, then the centroid of the
+    % footprint and the boresight projection are the same
+    fp.clon = fp.olon; fp.clat = fp.olat;
 else
-    bbox = smallestBoundingBox(fp.bvertices(:,1), fp.bvertices(:,2));
+    % If the footprint contains the limb, the projection of the x/y axis,
+    % if these do not intersect the body, will fall in the limb instead of
+    % the midpoints of the footprint. Furthermore, the gamma (surface point
+    % where the camera boresight is pointing at) will not necessarily
+    % coincide with the centroid of the footprint. 
+
+    % We "adjust" the focal plane to the box that encloses the part of the
+    % focal plane that actually contains the body and re-define the x/y
+    % axes within that box
+    deltafy = maxfy - minfy;
+    deltafx = maxfx - minfx;
+    xaxis = [maxfx,               miny + deltafy/2,    1]';
+    yaxis = [minx + deltafx/2 ,   maxfy,               1]';
+    xaxis = pointingRotation*xaxis;
+    yaxis = pointingRotation*yaxis;
+
+    [~, ~, ~, xpoint, ~, ~] = cspice_tangpt(method, target, t,...
+                targetframe, abcorr, corloc, sc, targetframe, xaxis);
+    [~, ~, ~, ypoint, ~, ~] = cspice_tangpt(method, target, t,...
+                 targetframe, abcorr, corloc, sc, targetframe, yaxis);
+    
+    % To compute the footprint's angle, we need to re-define the point
+    % "recpoint", which should coincide with the footprint's centroid
+    [lon, lat] = centroid(polyshape(fp.bvertices(:, 1), ...
+        fp.bvertices(:, 2))); % footprint centroid -> new camera's
+        % boresight pointing
+    % Save centroid values
+    fp.clon = lon; fp.clat = lat;
+
+    lon = lon*cspice_rpd; lat = lat*cspice_rpd;
+    recpoint = cspice_srfrec(cspice_bodn2c(target), lon, ...
+        lat); % rectangular coordinates of the centroid
+
+end
+
+% Compute the footprint angle between the longitude axis (projection) 
+% and the footprint's x-axis
+[~, lonx, latx] = cspice_reclat(xpoint);
+xedge = [lonx - lon, latx - lat];
+xedge = xedge./norm(xedge);
+fp.angle = atan2d(xedge(2), xedge(1));
+
+% Compute the footprint size as the angle separation between the
+% boresight and the focal plane's x-axis projection in rectangular
+% coordinates
+if ~irr
+    fp.sizex = 2*cspice_vsep(recpoint, xpoint)*cspice_dpr;
+    fp.sizey = 2*cspice_vsep(recpoint, ypoint)*cspice_dpr;
+else
+    % Compute footprint size from the smallestBoundingBox (the method above
+    % does not work well with limb projections)
+    bbox = smallestBoundingBox(fp.bvertices(:, 1), fp.bvertices(:, 2), ...
+        fp.angle);
     fp.sizex = bbox.size1;
     fp.sizey = bbox.size2;
 end
