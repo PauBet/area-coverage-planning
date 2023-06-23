@@ -44,12 +44,12 @@ function [A, cv, fplist] = neighbour_placement(startTime, tobs, inst, sc, ...
     
     %FOOTPRINT FUNCTION
     
-    cpoint = closestTargetCorner(target_body, sc, startTime, roi);
+    cpoint = closestTargetCorner_2(target_body, sc, startTime, roi);
     zerotarget = cpoint.';    
 
     %Footprint Paula
     
-    footprint_func = @(x,y,z) footprint(x, y, z, inst, sc, target_body, 0);
+    footprint_func = @(x,y,z) footprint_2(x, y, z, inst, sc, target_body, 0);
 
     zerofp = footprint_func(zerotarget(1), zerotarget(2),startTime);
     zerofootprint = zerofp.bvertices;
@@ -119,7 +119,7 @@ function [A, cv, fplist] = neighbour_placement(startTime, tobs, inst, sc, ...
     while s_area>s_area_zero*error_perc 
 
         %% Compute the footprint and the neighbours
-        [target_fp, rotmatrix]= footprint(target(1), target(2), time, inst, sc, target_body, 0);
+        [target_fp, rotmatrix]= footprint_2(target(1), target(2), time, inst, sc, target_body, 0);
         %target_fp = footprint_func(target(1), target(2),time);
         target_footprint = target_fp.bvertices;
         target_footprint = target_footprint.';
