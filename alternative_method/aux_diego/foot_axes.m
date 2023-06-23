@@ -4,7 +4,7 @@
 % principal axes of the footprint and its rotation with respect to the
 % standard 2d reference frame
 
-function [theta, x_foot, y_foot] = foot_axes(zerofootprint,steps_zero)
+function [theta, x_foot, y_foot] = foot_axes(zerofootprint)
 
     % Compute the mean points on the 4 sides of the footprint
     

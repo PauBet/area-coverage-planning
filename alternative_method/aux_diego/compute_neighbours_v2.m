@@ -41,8 +41,11 @@ for i = 1:8
 
     neigh_fp = footprint_func(neighbours(i,1), neighbours(i,2),et);
     neigh_footprint = neigh_fp.bvertices;
-    neighbours_polys{i} = polyshape(neigh_footprint);
-
+    try
+        neighbours_polys{i} = polyshape(neigh_footprint);
+    catch
+        neighbours_polys{i} = 0;
+    end    
 end
 
  
