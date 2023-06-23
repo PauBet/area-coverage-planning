@@ -29,7 +29,7 @@ function cside = closestSide(target, sc, t, targetArea, angle)
 angle = -angle*cspice_rpd;
 rotmat = [cos(angle)   -sin(angle);
           sin(angle)   cos(angle)];
- [cx, cy] = centroid(polyshape(targetArea(:,1), targetArea(:,2)));
+[cx, cy] = centroid(polyshape(targetArea(:,1), targetArea(:,2)));
 roi  = zeros(length(targetArea), 2);
 for j=1:length(targetArea)
     roi(j, :) = [cx, cy]' + rotmat*(targetArea(j, :)' - ...
