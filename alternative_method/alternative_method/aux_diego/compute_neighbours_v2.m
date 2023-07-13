@@ -1,4 +1,4 @@
-function [neighbours, neighbours_polys] = compute_neighbours_v2(target_body,et,target_orientation,obs,scinst,target_fixed,footprint_func)
+function [neighbours, neighbours_polys] = compute_neighbours_v2(target_body,et,target_orientation,obs,scinst,target_fixed,footprint_func,target)
 
 %Obtains the instrument code
 [code_inst, ~] = cspice_bodn2c(scinst); 
@@ -32,9 +32,12 @@ targets = overlap*[-dist, 0, 1/overlap;
 neigh_directions = target_orientation*targets;
 
 for i = 1:8
-    [spoints(:,i), ~, ~, ~] = cspice_sincpt('ELLIPSOID', target_body, et, target_fixed, 'NONE', obs,  target_fixed, neigh_directions(:,i)); 
+    [spoints(:,i), ~, ~, found] = cspice_sincpt('ELLIPSOID', target_body, et, target_fixed, 'NONE', obs,  target_fixed, neigh_directions(:,i)); 
     [~, neighbours(i,1), neighbours(i,2)] = cspice_reclat(spoints(:,i));
     neighbours(i,:) = (180/pi)*neighbours(i,:);
+    if found == 0
+       neighbours(i,:) = target;
+    end    
     % if neighbours(i,1)<0
     %    neighbours(i,1) =  neighbours(i,1) +360;
     % end    

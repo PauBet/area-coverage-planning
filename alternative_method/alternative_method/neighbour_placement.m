@@ -123,10 +123,9 @@ function [A, cv, fplist] = neighbour_placement(startTime, tobs, inst, sc, ...
         %target_fp = footprint_func(target(1), target(2),time);
         target_footprint = target_fp.bvertices;
         target_footprint = target_footprint.';
-        %plot(target_footprint(1,:),target_footprint(2,:))
         poly_target_footprint = polyshape(target_footprint.');
         
-        [neighbours, neighbours_polys] = compute_neighbours_v2(target_body,time,rotmatrix,sc,inst,target_fixed,footprint_func);
+        [neighbours, neighbours_polys] = compute_neighbours_v2(target_body,time,rotmatrix,sc,inst,target_fixed,footprint_func,target);
 
         % Compute the number of subareas after substracting the area by
         % intersection with a footprint the area might end up splitted in
@@ -138,18 +137,6 @@ function [A, cv, fplist] = neighbour_placement(startTime, tobs, inst, sc, ...
         poly_pseudo_roi = subtract(poly_pseudo_roi,poly_target_footprint);
         s_area = area(poly_pseudo_roi);
         
-        % Compute the coverage of the neighbours 
-    
-        for i = 1:8         
-            try  
-                neigh_cov_poly = intersect(poly_pseudo_roi,neighbours_polys{i}); 
-                footp_area = area(neighbours_polys{i});
-                neigh_coverage(i) = area(neigh_cov_poly)/footp_area;   
-            catch
-                neigh_coverage(i) = 0;
-            end    
-        end    
-
 
         % Compute the coverage of the current footprint over the real ROI
                 
@@ -175,11 +162,21 @@ function [A, cv, fplist] = neighbour_placement(startTime, tobs, inst, sc, ...
             time = time + tobs;
         end
     
-        % If the neighbours don't provide coverage finish the loop
-        if sum(neigh_coverage) == 0
-            fprintf('Loop finished by lack of neighbour coverage')
+        % Compute the coverage of the neighbours 
+    
+       for i = 1:8         
+            try  
+                neigh_cov_poly = intersect(poly_pseudo_roi,neighbours_polys{i}); 
+                footp_area = area(neighbours_polys{i});
+                neigh_coverage(i) = area(neigh_cov_poly)/footp_area;   
+            catch
+                neigh_coverage(i) = 0;
+            end    
+        end    
+
+        if max(neigh_coverage)<0.03
             break
-        end   
+        end    
  
         % Save the two previous choices 
         if n==2

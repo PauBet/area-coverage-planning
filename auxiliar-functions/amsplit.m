@@ -47,8 +47,8 @@ xinter = polyinter.Vertices(:, 1);
 yinter = polyinter.Vertices(:, 2);
 
 % Only keep the anti-meridian intercepts
-xi = xinter(xinter == 180); 
-yi = yinter(xinter == 180);
+yi = yinter(abs(xinter - 180) < 1e-2);
+xi = 180*ones(length(yi), 1);
 
 % Define the new polygon
 P = [x y];
@@ -59,8 +59,8 @@ P = [P; xi yi];
 % Split the polygon in two, cleaved by the anti-meridian line
 x = sort(P(:, 1));
 P = sortrows(P);
-poly1 = P(x >= 180, :); % this is the polygon that falls in positive lon.
-poly2 = P(x <= 180, :); % this is the polygon that falls in negative lon.
+poly1 = P(x >= 180, :); % this is the polygon that falls in negative lon.
+poly2 = P(x <= 180, :); % this is the polygon that falls in positive lon.
 
 % Sort the polygon vertices in clockwise order...
 [poly1(:,1), poly1(:,2)] = sortcw(poly1(:,1), poly1(:,2));
