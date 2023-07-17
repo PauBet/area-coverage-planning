@@ -1,4 +1,4 @@
-function [tour, grid] = planSidewinderTour(target, sc, t, roi, fprint0, ...
+function [tour, grid, sweep] = planSidewinderTour(target, sc, t, roi, fprint0, ...
     olapx, olapy, cside, tour0, grid0)
 % This function discretizes and computes the coverage path of a certain
 % ROI in order to build a mosaic image, adapted from [1]. Note that the
@@ -197,6 +197,8 @@ switch cside
             end
         end
 
+        sweep = rightsweep;
+
         if rightsweep
             bearing = true; % left -> right
         else
@@ -245,6 +247,8 @@ switch cside
                 % the position furthest to the top (top -> down direction)
             end
         end
+
+        sweep = downsweep;
         
         if downsweep
             bearing = true; % top -> down
