@@ -138,7 +138,7 @@ while ~isempty(openList)
     areaT = area(targetpshape);
     fpArea = area(fpshape);
 
-    if (areaT - areaI)/fpArea >= 0.1 % if the observation covers at
+    if (areaT - areaI)/fpArea >= 0.2 % if the observation covers at
         % least a minimum roi's area...
         cin{end + 1} = o; % add it to the list of covering tiles
         cind{end +1} = currind;

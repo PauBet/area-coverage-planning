@@ -171,13 +171,17 @@ switch heuristics
             mindelta = inf;
             for j=1:length(tour)
                 if j ~= length(tour)
-                    oldd = norm(tour{j+1} - tour{j});
-                    newd = norm(tour{j+1} - newp{i}) + ...
-                        norm(tour{j} - newp{i});
+                    %oldd = norm(tour{j+1} - tour{j});
+                    oldd = manhattan(tour{j+1}, tour{j});
+                    %newd = norm(tour{j+1} - newp{i}) + ...
+                    %    norm(tour{j} - newp{i});
+                    newd = manhattan(tour{j+1}, newp{i}) + ...
+                        manhattan(tour{j}, newp{i});
                     delta = newd - oldd; % increase of tour length when 
                     % adding the new insertion point
                 else
-                    delta = norm(tour{j} - newp{i});
+                    %delta = norm(tour{j} - newp{i});
+                    delta = manhattan(tour{j}, newp{i});
                 end
                 if delta < mindelta
                     mindelta = delta;
