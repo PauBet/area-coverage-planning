@@ -12,14 +12,15 @@ function [A, coverage, fpList] = sidewinder(startTime, endTime, tobs,...
 %   > startTime:    start time of the planning horizon, in TDB seconds past
 %                   J2000 epoch
 %   > endTime:      end time of the planning horizon, in TBD seconds past
-%                   J200 epoch
+%                   J2000 epoch
 %   > tobs:         observation time, i.e. the minimum time that the 
 %                   instrument needs to perform an observation, in seconds
 %   > inst:         string name of the instrument
 %   > sc:           string name of the spacecraft
 %   > target:       string name of the target body
 %   > roi:          matrix containing the vertices of the ROI polygon. The
-%                   vertex points are expressed in 2D. 
+%                   vertex points are expressed in 2D, in latitudinal 
+%                   coordinates [º]
 %       # roi(:,1) correspond to the x values of the vertices
 %       # roi(:,2) correspond to the y values of the vertices
 %   > olapx:        grid footprint overlap in the x direction (longitude),
@@ -44,7 +45,12 @@ function [A, coverage, fpList] = sidewinder(startTime, endTime, tobs,...
 A = {}; % List of observations (successive boresight ground track position)
 theta = 0; % temppppppp
 [~, targetFrame, ~] = cspice_cnmfrm(target); % body-fixed frame
-mapplot = 1;
+fpList = [];
+if ~isempty(ax)
+    mapplot = 1;
+else
+    mapplot = 0;
+end
 
 % Previous anti-meridian intersection check...
 ind = find(diff(sort(roi(:, 1))) >= 180, 1); % find the discontinuity index
@@ -147,14 +153,14 @@ while ~exit && t < endTime
             if mapplot
                 % Footprint plot in Figure 2
                 plot(ax, poly2, 'FaceColor', 'b', 'EdgeColor', ...
-                    'b', 'linewidth', 1, 'FaceAlpha', 0.2)
+                    'b', 'linewidth', 1, 'FaceAlpha', 0.15)
                 % plot(ax, poly2, 'FaceColor', [0.39,0.83,0.07], 'EdgeColor', ...
                 %     [0.39,0.83,0.07], 'linewidth', 1, 'FaceAlpha', 0.2)
                 if length(A) > 1
                     if abs(A{end-1}(1) - A{end}(1)) <= 180 % no coverage ...
                         % path - a.m. intercept
                         plot(ax, [A{end-1}(1) A{end}(1)], [A{end-1}(2) A{end}(2)],...
-                            'w-', 'linewidth', 1)
+                            'w-', 'linewidth', 0.75)
                     end
                 end
                 drawnow
@@ -213,7 +219,9 @@ while ~exit && t < endTime
 end
 
 % Remove first element of fplist (it was just to set the struct fields)
-fpList(1) = [];
+if ~isempty(fpList)
+    fpList(1) = [];
+end
 
 % ROI coverage percentage
 %coverage = (roiarea - polysurfarea(poly1.Vertices, target))/roiarea;

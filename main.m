@@ -14,7 +14,7 @@ input_data;
 
 % Choose mosaic algorithm: 'sidewinder', 'r_sidewinder', 'onlinefrontier',
 % 'gridnibbler'
-tilealg = 'r_sidewinder';
+tilealg = 'onlinefrontier';
 
 % File log...
 fid = fopen(fullfile(pwd, [tilealg, '.txt']), 'w');
@@ -27,9 +27,9 @@ fprintf(fid, 'Mission: %s\n', sc);
 % Pre-allocation of variables... 
 stoptime = cspice_str2et('1998 MAY 30 00:00:00.000 TDB'); % mosaic end (max)
 tobs  = 10; % [s] between observations
-olapx = 10; % [%] of overlap in x direction
-olapy = 10; % [%] of overlap in y direction
-videosave = 1; % =1 saves a video with the evolution of the coverage map
+olapx = 20; % [%] of overlap in x direction
+olapy = 20; % [%] of overlap in y direction
+videosave = 0; % =1 saves a video with the evolution of the coverage map
 % along the observation plan
 
 fprintf(fid, 'Obs time [s]: %.1f\n', tobs);
@@ -69,7 +69,7 @@ roi{3} = [-55   20;
 %           -95  -20;
 %           -70  -20;]; % roi of roi polygon
 
-inittime{3} = cspice_str2et('1998 MAR 29 14:04:00.000 TDB'); % closest approach
+inittime{3} = cspice_str2et('1998 MAR 29 14:02:00.000 TDB'); % closest approach
 regions{3} = 'Tara Regio';
 
 % Cilix crater [lon, lat] = [180, 0]º;
@@ -142,9 +142,11 @@ if videosave
     v2.FrameRate = 2;
     open(v2)
     writeVideo(v2, getframe(gcf));
+else
+    v2 = [];
 end
 obsDic = dictionary();
-for i=5:5
+for i=1:1
     %     if abs(min(roi{i}(:, 1)) -  max(roi{i}(:, 1))) > 180
 %         xlim([175  180])
 %         ylim([min(roi{i}(:, 2)) - 10  max(roi{i}(:, 2)) + 10])
@@ -152,11 +154,11 @@ for i=5:5
 %         xlim([min(roi{i}(:, 1)) - 10  max(roi{i}(:, 1)) + 10])
 %         ylim([min(roi{i}(:, 2)) - 10  max(roi{i}(:, 2)) + 10])
 %     end
-
+    tic
     switch tilealg
         case 'sidewinder'
             [A, cv, fplist] = sidewinder(inittime{i}, stoptime, tobs, ...
-                inst, sc, target, roi{i}, olapx, olapy, ax, map(i, :), []);
+                inst, sc, target, roi{i}, olapx, olapy, ax, map(i, :), v2);
 
         case 'r_sidewinder'
             [A, cv, fplist] = replanningSidewinder(inittime{i}, ...
@@ -165,7 +167,8 @@ for i=5:5
 
         case 'onlinefrontier'
             [A, cv, fplist] = frontierRepair(inittime{i}, stoptime, ...
-                tobs, inst, sc, target, roi{i}, olapx, olapy, ax, c{i}, 0);
+                tobs, inst, sc, target, roi{i}, olapx, olapy, ax, ...
+                map(i, :), v2);
 
         case 'gridnibbler'
             A = gridNibbler(startTime, endTime, step, instName, scName, ...
@@ -175,6 +178,7 @@ for i=5:5
             A = neighbour_placement(inittime{i}, tobs, inst, '-77', ...
                   target, roi{i}, ax);
     end
+    toc
 
     clear grid2D planSidewinderTour;
     obsDic(regions{i}) = {fplist};
@@ -191,8 +195,10 @@ for i=5:5
         map(i, :), 'linewidth', 1)
 end
 set(gca, 'xlim', [-180 180], 'ylim', [-90 90])
-%writeVideo(v2, getframe(gcf));
-%close(v2);
+if videosave
+    writeVideo(v2, getframe(gcf));
+    close(v2);
+end
 
 % Analyze metrics
 %emnang    = zeros(1, length(fplist));
