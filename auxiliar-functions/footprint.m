@@ -399,6 +399,14 @@ xedge = [lonx - lon, latx - lat];
 xedge = xedge./norm(xedge);
 fp.angle = atan2d(xedge(2), xedge(1));
 
+% Compute the footprint angle between the longitude axis (projection) 
+% and the footprint's y-axis
+[~, lony, laty] = cspice_reclat(ypoint);
+yedge = [lony - lon, laty - lat];
+yedge = yedge./norm(yedge);
+angley = atan2d(yedge(2), yedge(1));
+theta = abs(angley - fp.angle) - 90;
+
 % Compute the footprint size as the angle separation between the
 % boresight and the focal plane's x-axis projection in rectangular
 % coordinates
@@ -413,5 +421,7 @@ else
     fp.sizex = bbox.size1;
     fp.sizey = bbox.size2;
 end
+
+fp.sizey = fp.sizey*abs(cosd(theta));
 
 end
