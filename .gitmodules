@@ -1,0 +1,3 @@
+[submodule "instrument-observation"]
+	path = instrument-observation
+	url = git@github.com:PauBet/instrument-observation.git
