@@ -1,0 +1,6 @@
+# Temp files & cache
+*.asv
+
+# Specific directories
+/paper/*
+/alternative_method/*
