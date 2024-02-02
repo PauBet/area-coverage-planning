@@ -21,6 +21,7 @@ cout = {}; % set of disposable observations (inside or outside from 'tour')
 N    = {}; % set of new tiles (outside from 'tour')
 Nind = {}; % map indices of the new tiles
 X    = {}; % set of disposable tiles (inside of 'tour')
+epsilon = 0.2;
 
 % Build reference tile (it's always going to be the same in the subsequent
 % calls)
@@ -42,31 +43,51 @@ if isempty(fpref)
 end
 
 % Project ROI topographical coordinates to instrument's focal plane
-targetArea = topo2inst(roi, gamma_topo(1), gamma_topo(2), target, sc, ...
-    inst, et); % current roi coordinates in the instrument reference frame,
+targetArea = topo2inst(roi, cx, cy, target, sc, inst, et);
+%targetArea = topo2inst(roi, gamma_topo(1), gamma_topo(2), target, sc, ...
+%    inst, et); % current roi coordinates in the instrument reference frame,
 % when the instrument is pointing at the current grid origin point (next
 % observation)
 % Since we are not calculating the grid again, but rather updating a
 % reference, we need to have the same origin, i.e., we need a 0 point of
 % the ROI's projection that is invariant across iterations, so there is a
 % unique correspondance of the grid points over time.
-cent = topo2inst(pointing0, gamma_topo(1), gamma_topo(2), target, sc, ...
-    inst, et);
-targetArea(:, 1) = targetArea(:, 1) - cent(1);
-targetArea(:, 2) = targetArea(:, 2) - cent(2);
+%cent = topo2inst(pointing0, gamma_topo(1), gamma_topo(2), target, sc, ...
+%    inst, et);
+%targetArea(:, 1) = targetArea(:, 1) - cent(1);
+%targetArea(:, 2) = targetArea(:, 2) - cent(2);
 targetpshape = polyshape(targetArea(:,1), targetArea(:,2)); % polyshape
 % Oriented area
-anglerot = -(angle - angle0);
-rotmat = [cosd(anglerot)   -sind(anglerot);
-          sind(anglerot)   cosd(anglerot)];
-% matrixGrid directions x and y
-[cxt, cyt] = centroid(polyshape(targetArea(:,1), targetArea(:,2)));
-orientedArea  = zeros(length(targetArea), 2);
-for j=1:length(targetArea)
-    orientedArea(j, :) = [cxt, cyt]' + rotmat*(targetArea(j, :)' - ...
-        [cxt, cyt]');
+% anglerot = -(angle - angle0);
+% rotmat = [cosd(anglerot)   -sind(anglerot);
+%           sind(anglerot)   cosd(anglerot)];
+% % matrixGrid directions x and y
+% [cxt, cyt] = centroid(polyshape(targetArea(:,1), targetArea(:,2)));
+% orientedArea  = zeros(length(targetArea), 2);
+% for j=1:length(targetArea)
+%     orientedArea(j, :) = [cxt, cyt]' + rotmat*(targetArea(j, :)' - ...
+%         [cxt, cyt]');
+% end
+% targetpshape = polyshape(orientedArea(:,1), orientedArea(:,2)); % polyshape
+
+% Get grid shifting due to observation geometry update
+updated_gamma = topo2inst(gamma_topo, cx, cy, target, sc, inst, et);
+shift = updated_gamma - gamma;
+gamma = updated_gamma;
+gamma0 = gamma0 + shift;
+
+% Shift grid, tour, gamma and gamma0
+for i=1:size(grid, 1)
+    for j=1:size(grid, 2)
+        if ~isempty(grid{i, j})
+            grid{i, j} = grid{i, j} + shift;
+        end
+    end
 end
-targetpshape = polyshape(orientedArea(:,1), orientedArea(:,2)); % polyshape
+
+for i=1:length(tour)
+    tour{i} = tour{i} + shift;
+end
 
 %% UPDATE GRID
 % Update map by removing the previous element in the tour (next observation)
@@ -132,7 +153,7 @@ while ~isempty(openList)
     areaT = area(targetpshape);
     fpArea = area(fpshape);
 
-    if (areaT - areaI)/fpArea >= 0.2 % if the observation covers at
+    if (areaT - areaI)/fpArea >= epsilon % if the observation covers at
         % least a minimum roi's area...
         cin{end + 1} = o; % add it to the list of covering tiles
         cind{end +1} = currind;
@@ -301,27 +322,27 @@ grid = map2grid(map);
 tour = boustrophedon(grid, dir1, dir2);
 
 % Rotate back grid points
-grid_rot = rotGrid([cxt cyt], grid, angle, angle0);
-tour_rot = rotGrid([cxt cyt], tour, angle, angle0);
+%grid_rot = rotGrid([cxt cyt], grid, angle, angle0);
+%tour_rot = rotGrid([cxt cyt], tour, angle, angle0);
 if ~isempty(tour)
     gamma = tour{1};
     % Transform coordinates
-    for i=1:size(grid_rot, 1)
-        for j=1:size(grid_rot, 2)
-            if ~isempty(grid_rot{i, j}) 
-                grid_rot{i, j} = grid_rot{i, j} + cent;
-            end
-        end
-    end
-    for i=1:length(tour_rot)
-            if ~isempty(tour_rot{i})
-                tour_rot{i} = tour_rot{i} + cent;
-            end
-    end
-    grid_topo = inst2topo(grid_rot, gamma_topo(1), gamma_topo(2), target, sc, inst, et);
-    tour_topo = inst2topo(tour_rot, gamma_topo(1), gamma_topo(2), target, sc, inst, et);
-    %grid_topo = inst2topo(grid_rot, pointing0(1), pointing0(2), target, sc, inst, et);
-    %tour_topo = inst2topo(tour_rot, pointing0(1), pointing0(2), target, sc, inst, et);
+    % for i=1:size(grid_rot, 1)
+    %     for j=1:size(grid_rot, 2)
+    %         if ~isempty(grid_rot{i, j}) 
+    %             grid_rot{i, j} = grid_rot{i, j} + cent;
+    %         end
+    %     end
+    % end
+    % for i=1:length(tour_rot)
+    %         if ~isempty(tour_rot{i})
+    %             tour_rot{i} = tour_rot{i} + cent;
+    %         end
+    % end
+    %grid_topo = inst2topo(grid_rot, gamma_topo(1), gamma_topo(2), target, sc, inst, et);
+    %tour_topo = inst2topo(tour_rot, gamma_topo(1), gamma_topo(2), target, sc, inst, et);
+    grid_topo = inst2topo(grid, cx, cy, target, sc, inst, et);
+    tour_topo = inst2topo(tour, cx, cy, target, sc, inst, et);
     indel = [];
     for i=1:length(tour_topo)
         if isempty(tour_topo{i}), indel = [indel i]; end

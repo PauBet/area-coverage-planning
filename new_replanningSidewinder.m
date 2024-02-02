@@ -6,20 +6,35 @@ clc; close all; clear all;
 % Re-implementation of sidewinder function with these new feature (and
 % other code improvements)
 
+% % Load mission info (kernels, SPICE ids, etc.)
+% input_data;
+% %inittime = cspice_str2et('1998 MAR 29 12:53:00.000 TDB'); % closest approach
+% inittime = cspice_str2et('1998 MAR 29 12:55:00.000 TDB'); % closest approach
+% stoptime = inittime + 24*3600;
+% tcadence = 10; % observation cadence [s]
+% olapx = 20; olapy = 20; % overlap in [%]
+% speedUp = 0;
+% 
+% % Define ROI (Annwn Regio)
+% roi = [65 30;
+%        65 15;
+%        45 15;
+%        45 30;];
+
 % Load mission info (kernels, SPICE ids, etc.)
 input_data;
 %inittime = cspice_str2et('1998 MAR 29 12:53:00.000 TDB'); % closest approach
-inittime = cspice_str2et('1998 MAR 29 12:55:00.000 TDB'); % closest approach
+inittime = cspice_str2et('1998 MAR 29 12:35:00.000 TDB'); % closest approach
 stoptime = inittime + 24*3600;
-tcadence = 10; % observation cadence [s]
+tcadence = 20; % observation cadence [s]
 olapx = 20; olapy = 20; % overlap in [%]
 speedUp = 0;
 
 % Define ROI (Annwn Regio)
-roi = [65 30;
-       65 15;
-       45 15;
-       45 30;];
+roi = [25  25;
+       25  -5;
+       -5  -5;
+       -5  25;];
 
 % Point camera at ROI's centroid
 [cx, cy] = centroid(polyshape(roi(:, 1), roi(:, 2)));
@@ -28,17 +43,18 @@ roistruct(1).cpoint = [cx, cy];
 roistruct(1).name = "Annwn Regio";
 
 % Sidewinder
-[A, fpList, coverage, overlap, makespan, nfp] = replanningSidewinder2(inittime, ...
-    stoptime, tcadence, inst, sc, target, roi, olapx, olapy, 0);
-
+tic
+[A, fpList] = replanningSidewinder2(inittime, ...
+    stoptime, tcadence, inst, sc, target, roi, olapx, olapy, 3*1e-3, 0);
+toc
 % Plot tour
-plotTour(A, fpList, roistruct, sc, target, [])
+plotTour(A, fpList, roistruct, sc, target)
 
 % Zoom in
-xlim([25 100])
-ylim([0 40])
-xtick = 25:15:100;
-ytick = 0:10:40;
+xlim([-30 60])
+ylim([-15 35])
+xtick = -30:15:60;
+ytick = -15:10:35;
 
 % x tick label
 xtickstr = string();
@@ -69,7 +85,7 @@ set(gca, 'XTick', xtick, 'YTick', ytick, 'XTickLabel', xtickstr, ...
 
 % Save figure [PDF]
 figpath = '.';
-set(gcf, 'Units', 'inches', 'Position', [3,3,10.2,6]);
+set(gcf, 'Units', 'inches', 'Position', [3,3,9.2,6]);
 pos = get(gcf, 'Position');
 set(gcf, 'PaperPositionMode', 'auto', 'PaperUnits', 'inches', ...
     'PaperSize', [pos(3), pos(4)]);

@@ -21,39 +21,49 @@ clc; close all; clear all;
 %        45 12;
 %        45 30;];
 
-% Load mission info (kernels, SPICE ids, etc.)
+% % Load mission info (kernels, SPICE ids, etc.)
 input_data;
-%inittime = cspice_str2et('1998 MAR 29 12:53:00.000 TDB'); % closest approach
-inittime = cspice_str2et('1998 MAR 29 12:35:00.000 TDB'); % closest approach
-stoptime = inittime + 24*3600;
-tcadence = 20; % observation cadence [s]
+tcadence = 8.5; % observation cadence [s]
 olapx = 20; olapy = 20; % overlap in [%]
 speedUp = 0;
 
-% Define ROI (Annwn Regio)
-roi = [25  25;
-       25  -5;
-       -5  -5;
-       -5  25;];
+% % Define ROI (Annwn Regio)
+% roi = [60 30;
+%        60 10;
+%        40 10;
+%        40 30;];
+%inittime = cspice_str2et('1998 MAR 29 12:51:00.000 TDB'); % closest approach
+
+% Define ROI (Niamh)
+roi = [150  25;
+       150  15;
+       135  15;
+       135  25;]; % roi of roi polygon
+inittime = cspice_str2et('1998 MAR 29 13:29:00.000 TDB');
+stoptime = inittime + 24*3600;
 
 % Point camera at ROI's centroid
 [cx, cy] = centroid(polyshape(roi(:, 1), roi(:, 2)));
 roistruct(1).vertices = roi;
 roistruct(1).cpoint = [cx, cy];
-roistruct(1).name = "Annwn Regio";
+roistruct(1).name = "Niamh";
 
 % Sidewinder
+tic
 [A, fpList] = frontierRepair2(inittime, ...
-    stoptime, tcadence, inst, sc, target, roi, olapx, olapy, 0);
+    stoptime, tcadence, inst, sc, target, roi, olapx, olapy, 3*1e-3, 0);
+toc
 
 % Plot tour
-plotTour(A, fpList, roistruct, sc, target, [])
+plotTour(A, fpList, roistruct, sc, target)
+legend('NumColumns', 2, 'Location', 'north')
+title(roistruct.name)
 
 % Zoom in
-xlim([-30 60])
-ylim([-15 35])
-xtick = -30:20:60;
-ytick = -15:10:35;
+xlim([120 180])
+ylim([0 40])
+xtick = 120:15:180;
+ytick = 0:10:40;
 
 % x tick label
 xtickstr = string();
@@ -84,9 +94,10 @@ set(gca, 'XTick', xtick, 'YTick', ytick, 'XTickLabel', xtickstr, ...
 
 % Save figure [PDF]
 figpath = '.';
-set(gcf, 'Units', 'inches', 'Position', [3,3,9.2,6]);
+set(gcf, 'Units', 'inches', 'Position', [3,3,7.4,5.3]);
+%set(gcf, 'Units', 'inches', 'Position', [3,3,9.2,6]);
 pos = get(gcf, 'Position');
 set(gcf, 'PaperPositionMode', 'auto', 'PaperUnits', 'inches', ...
     'PaperSize', [pos(3), pos(4)]);
 filename = fullfile(figpath, 'r_onlineFrontier');
-print(gcf, filename, '-dpdf', '-r1200')
+print(gcf, filename, '-dpdf', '-r600')
