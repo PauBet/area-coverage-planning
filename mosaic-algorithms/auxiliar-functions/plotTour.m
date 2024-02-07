@@ -77,7 +77,7 @@ for i=1:length(roistruct)
 end
 
 % Legend
-legend([h1, h2, h3, h4], 'AutoUpdate', 'off')
+legend([h1, h2, h3, h4, h5], 'AutoUpdate', 'off')
 
 if ~isempty(video), close(video); end
 
