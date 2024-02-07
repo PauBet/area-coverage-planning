@@ -1,21 +1,15 @@
 function [tour, grid_topo] = rePlanSidewinderTour(target, roi, sc, inst, et, ...
-    ovlapx, ovlapy, angle, indir1, indir2, grid_topo, origin_topo, old_origin_topo)
+    ovlapx, ovlapy, angle, cx, cy, grid_topo, origin_topo, old_origin_topo)
 
 % Pre-allocate variables
 tour = {};
-[~, targetframe, ~] = cspice_cnmfrm(target); % target frame ID in SPICE
 persistent fpref;
 persistent dir1;
 persistent dir2;
-if isempty(dir1)
-    dir1 = indir1; dir2 = indir2;
-end
 if isempty(origin_topo)
     % Point camera at ROI's centroid
     [origin_topo(1), origin_topo(2)] = centroid(polyshape(roi(:, 1), roi(:, 2)));
 end
-method = 'ELLIPSOID'; % assumption: ray intercept function is going to
-% model the target body as a tri-axial ellipsoid
 
 % Build reference tile (it's always going to be the same in the subsequent
 % calls)
@@ -28,69 +22,26 @@ if isempty(fpref)
     fpref.angle = angle;
 end
 
-% Get camera's FOV boundaries and boresight (when pointing at origin)
-[cx, cy] = centroid(polyshape(roi(:, 1), roi(:, 2)));
-[fovbounds, boresight, rotmat] = instpointing(inst, target, sc, et, cx, cy);
-
-% Build focal plane
-vertex = cspice_spkpos(sc, et, targetframe, 'NONE', target);
-point = vertex + fovbounds(:, 1);
-plane = cspice_nvp2pl(boresight, point);
-
 % Intersect ROI with focal plane
-spoint = zeros(size(roi, 1), 3);
-for i=1:size(roi, 1)
-    if ~isnan(roi(i, :))
-        dir = -trgobsvec(roi(i, :), et, target, sc);
-        [found, spoint(i, :)] = cspice_inrypl(vertex, dir, plane);
-        if found == 0
-            disp("No intersection");
-        end
-    else
-        spoint(i, :) = nan(1, 3);
-    end
-end
+targetArea = topo2inst(roi, cx, cy, target, sc, inst, et);
+% Project origin to focal plane
+origin = topo2inst(origin_topo, cx, cy, target, sc, inst, et);
 
-% Build grid 2D in the focal plane
-tArea = zeros(length(spoint), 3);
-for i=1:length(spoint)
-    if ~isnan(spoint(i, :))
-        vpoint = -(vertex - spoint(i, :)');
-        tArea(i, :) = rotmat\vpoint;
-    else
-        tArea(i, :) = nan(1, 3);
-    end
+% Get sweeping directions (if necessary)
+if isempty(dir1)
+    % Closest polygon side to the spacecraft's ground track position (this
+    % will determine the coverage path)
+    gt1 = groundtrack(sc, et, target);
+    gt2 = groundtrack(sc, et + 500, target);
+    gt1 = topo2inst(gt1, cx, cy, target, sc, inst, et);
+    gt2 = topo2inst(gt2, cx, cy, target, sc, inst, et + 500);
+    [dir1, dir2] = closestSide2(gt1, gt2, targetArea, angle);
 end
-targetArea = tArea(:, 1:2);
-
-% Intersect origin with focal plane
-dir = -trgobsvec(origin_topo, et, target, sc);
-[found, aux] = cspice_inrypl(vertex, dir, plane);
-if found == 0
-    % Pending work...
-    disp("Origin not visible");
-    return;
-end
-vpoint = -(vertex - aux);
-aux = rotmat\vpoint;
-origin = aux(1:2, :);
 
 if isempty(grid_topo) % First iteration
     % Focal plane grid discretization
-    grid = grid2D(fpref, ovlapx, ovlapy, origin', targetArea);
+    grid = grid2D(fpref, ovlapx, ovlapy, origin, targetArea);
 else
-    % Intersect old_origin with focal plane
-    dir = -trgobsvec(old_origin_topo, et, target, sc);
-    [found, aux] = cspice_inrypl(vertex, dir, plane);
-    if found == 0
-        % This is a special case... pending work
-        disp("Old origin not visible");
-        return;
-    end
-    vpoint = -(vertex - aux);
-    aux = rotmat\vpoint;
-    old_origin = aux(1:2, :);
-
     % Replanning Sidewinder: unlike Sidewinder, which only calls
     % planSidewinderTour once, replanning Sidewinder "replans" after
     % every iteration (i.e., footprint). Therefore, in order not to
@@ -157,7 +108,7 @@ else
 
     % Replanning sidewinder: optimize grid origin in order to avoid
     % potential taboo tiles
-    grid = optimizeGridOrigin2(origin', fpref, ovlapx, ovlapy, ...
+    grid = optimizeGridOrigin2(origin, fpref, ovlapx, ovlapy, ...
           targetArea, dir1, dir2);
     if isempty(grid), return; end
 
@@ -202,41 +153,16 @@ else
     %     end
         
 end
-% 
-% figure
-% plot(polyshape(targetArea(:, 1), targetArea(:, 2)))
-% hold on; axis equal;
-% plot(targetArea(:, 1), targetArea(:, 2), 'b*')
-% for i=1:size(grid, 1)
-%     for j=1:size(grid, 2)
-%         sp = grid{i, j};
-%         if ~isempty(sp)
-%             plot(sp(1), sp(2), '^')
-%         end
-%     end
-% end
-
-grid_topo = inst2topo(grid, rotmat, target, et, sc);
 
 % Boustrophedon decomposition
 itour = boustrophedon(grid, dir1, dir2);
 
-% Intersect each tile with the target's surface
-count = 0;
-for i=1:length(itour)
-    sp = itour{i};
-    if ~isempty(sp)
-        p = zeros(3, 1);
-        p(1:2) = sp; p(3) = 1;
-        p_body = rotmat*p;
-        [xpoint, ~, ~, found] = cspice_sincpt(method, target, et,...
-            targetframe, 'NONE', sc, targetframe, p_body);
-        if found
-            count = count + 1;
-            [~, lon, lat] = cspice_reclat(xpoint);
-            tour{count} = [lon*cspice_dpr, lat*cspice_dpr];
-        end
-    end
+% Transform coordinates
+grid_topo = inst2topo(grid, cx, cy, target, sc, inst, et);
+tour = inst2topo(itour, cx, cy, target, sc, inst, et);
+indel = [];
+for i=1:numel(tour)
+    if isempty(tour{i}), indel = [indel i]; end
 end
-
+tour(indel) = [];
 end

@@ -1,5 +1,5 @@
-function [A, fpList, coverage, overlap, makespan, nfp] = sidewinder2(startTime, endTime, tobs,...
-    inst, sc, target, inroi, olapx, olapy, speedUp)
+function [A, fpList] = sidewinder2(startTime, endTime, tobs,...
+    inst, sc, target, inroi, olapx, olapy, slewRate, speedUp)
 % Target-fixed Boustrophedon decomposition, adapted from [1].
 %
 % Programmers:  Paula Betriu (UPC/ESEIAAT)
@@ -48,28 +48,29 @@ function [A, fpList, coverage, overlap, makespan, nfp] = sidewinder2(startTime, 
 % Pre-allocate variables
 A        = {};
 fpList   = [];
-coverage = 0;
-overlap  = 0;
-makespan = 0;
-nfp      = 0;
 if speedUp, resolution = 'lowres';
 else, resolution = 'highres'; end
+resolution = 'lowres';
+amIntercept = false;
 
-% Previous anti-meridian intersection check...
-ind = find(diff(sort(inroi(:, 1))) >= 180, 1); % find the discontinuity index
-if ~isempty(ind)
-    inroi(inroi(:, 1) < 0, 1) = inroi(inroi(:, 1) < 0, 1) + 360;
-    [inroi(:, 1), inroi(:, 2)] = sortcw(inroi(:, 1), inroi(:, 2));
-end
-
+% Future work: we need to solve this incompatibility... Anti-meridian and
+% visibility:
 % Check ROI visible area from spacecraft
 vsbroi = visibleroi(inroi, startTime, target, sc);
 roi = interppolygon(vsbroi); % interpolate polygon vertices (for improved 
 % accuracy)
-x = roi(:, 1); y = roi(:, 2);
+
+% Previous anti-meridian intersection check...
+ind = find(diff(sort(inroi(:, 1))) >= 180, 1); % find the discontinuity index
+if ~isempty(ind)
+    amIntercept = true;
+    roi = inroi;
+    roi(roi(:, 1) < 0, 1) = roi(roi(:, 1) < 0, 1) + 360;
+    [roi(:, 1), roi(:, 2)] = sortcw(roi(:, 1), roi(:, 2));
+end
 
 % Define target area as a polygon
-polyroi = polyshape(x, y);
+poly1 = polyshape(roi(:, 1), roi(:, 2));
 
 %% Sidewinder heuristics
 % The first time iteration is the starting time in the planning horizon
@@ -83,9 +84,9 @@ while ~exit && t < endTime
     % Initial 2D grid layout discretization: the instrument's FOV is going
     % to be projected onto the uncovered area's centroid and the resulting
     % footprint shape is used to set the grid spatial resolution
-    [gamma(1), gamma(2)] = centroid(polyroi);
+    [gamma(1), gamma(2)] = centroid(poly1);
     fprintc = footprint(t, inst, sc, target, resolution, ...
-        gamma(1), gamma(2)); % centroid footprint
+        gamma(1), gamma(2), 1); % centroid footprint
 
     % Initialize struct that saves footprints (sub-structs)
     if t == startTime
@@ -95,15 +96,10 @@ while ~exit && t < endTime
         end
     end
     
-    % Closest polygon side to the spacecraft's ground track position (this
-    % will determine the coverage path in planSidewinderTour)
-    [dir1, dir2] = closestSide(target, sc, t, roi, fprintc.angle);
-    dir1 = 'east'; dir2 = 'north';
-    
     % Sorted list of grid points according to the sweeping/coverage path
     % (see Boustrophedon decomposition)
     [~, ~, ~, ~, tour] = planSidewinderTour2(target, roi, sc, inst, t, ...
-        olapx, olapy, dir1, dir2, fprintc.angle);
+        olapx, olapy, fprintc.angle);
 
     if isempty(tour)
         disp("ROI is not visible from the observer. Define a new observation geometry")
@@ -111,8 +107,7 @@ while ~exit && t < endTime
         continue
     elseif length(tour) == 1
         lon = tour{1}(1); lat = tour{1}(2);
-        fprint = footprint(t, inst, sc, target, res, lon, lat);
-        fpList(end+1) = fprint;
+        fpList(end+1) = fprintc;
         tour = {[lon, lat]};
         disp("FOV projection is larger than ROI surface")
         exit = true;
@@ -120,7 +115,7 @@ while ~exit && t < endTime
     end
 
     if ~speedUp
-        while ~isempty(tour)
+        while ~isempty(tour) && ~exit
             % Compute the footprint of each point in the tour successively and
             % subtract the corresponding area from the target polygon
             a = tour{1}; % observation
@@ -132,18 +127,35 @@ while ~exit && t < endTime
             % Compute the observation's footprint
             fprintf('Computing %s FOV projection on %s at %s...', inst, ...
                 target, cspice_et2utc(t, 'C', 0));
-            fprinti = footprint(t, inst, sc, target, 'highres', a(1), a(2));
+            fprinti = footprint(t, inst, sc, target, resolution, a(1), a(2), 1);
+            v2 = fprinti.fovbsight;
 
             if ~isempty(fprinti.bvertices)
                 fprintf('\n')
+                % Check a.m. intercept
+                if amIntercept
+                    aux = fprinti; ind = aux.bvertices(:, 1) < 0;
+                    aux.bvertices(ind, 1) = aux.bvertices(ind, 1) + 360;
+                    poly2 = polyshape(aux.bvertices);
+                else
+                    poly2 = polyshape(fprinti.bvertices); % create footprint
+                    % polygon
+                end
+
                 A{end + 1} = a; % add it in the list of planned observations
+                poly1 = subtract(poly1, poly2); % update uncovered area
+                if isempty(poly1.Vertices), exit = true; continue; end
 
                 % Save footprint struct
                 fpList(end + 1) = fprinti;
 
                 % New time iteration
-                t = t + tobs;
-                %t = t + tobs + slewDur(t, A{end}, A{end + 1}); % future work
+                if exist("v1", 'var')
+                    t = t + tobs + slewDur(v1, v2, slewRate); % future work
+                else
+                    t = t + tobs;
+                end
+                v1 = v2;
 
                 % Future work: automated scheduling
                 % lastfp = fprinti;
@@ -191,23 +203,23 @@ if ~speedUp
     else
         return;
     end
+    % 
+    % % Make-span
+    % nfp = length(fpList);
+    % if length(fpList) > 1
+    %     makespan = fpList(end).t - fpList(1).t;
+    % else
+    %     makespan = tobs;
+    % end
 
-    % Make-span
-    nfp = length(fpList);
-    if length(fpList) > 1
-        makespan = fpList(end).t - fpList(1).t;
-    else
-        makespan = tobs;
-    end
-
-    % ROI coverage percentage
-    [coverage, overlap] = roicoverage(target, roi, fpList);
+    % % ROI coverage percentage
+    %[coverage, overlap] = roicoverage(target, polyroi.Vertices, fpList);
 else
     A = tour;
-    makespan = tobs*length(A);
-    nfp = length(A);
     fpList = [];
-    coverage = [];
-    overlap = [];
+    % makespan = tobs*length(A);
+    % nfp = length(A);
+    % coverage = [];
+    % overlap = [];
 end
 end

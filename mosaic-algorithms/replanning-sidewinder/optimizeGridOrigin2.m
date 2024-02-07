@@ -56,8 +56,8 @@ deltay = 0.1*fp0.height; % displacement value in y direction
 % while the grid is not optimal nor the displacement value has reached its
 % maximum yet...
 grid = [];
-while ~opt && abs(gamma(1) - gamma0(1)) <= fp0.width/4 && ...
-        abs(gamma(2) - gamma0(2)) <= fp0.height/4
+while ~opt && abs(gamma(1) - gamma0(1)) <= fp0.width/2 && ...
+        abs(gamma(2) - gamma0(2)) <= fp0.height/2
 
     % Discretize the non-covered roi space (flood-fill), seeded with gamma
     gamma = gamma + delta;
@@ -76,6 +76,10 @@ while ~opt && abs(gamma(1) - gamma0(1)) <= fp0.width/4 && ...
         delta = delta + [deltax*dirc(1), deltay*dirc(2)];
         gamma = gamma + delta;
         grid = grid2D(fp0, olapx, olapy, gamma, roi);
+    end
+
+    if isempty(grid)
+        return;
     end
 
     % The grid shifting may go in both directions (dirx and diry) and,
@@ -106,7 +110,7 @@ while ~opt && abs(gamma(1) - gamma0(1)) <= fp0.width/4 && ...
 
                 else % spacecraft is towards roi's top
                     if ind_row < size(grid, 1) && any(cellfun(@any, ...
-                            grid(ind_row + 1, :)), 'all') 
+                            grid((ind_row + 1):end, :)), 'all') 
                         
                         % Move the grid "downwards"
                         delta = delta - deltay*diry;
@@ -135,14 +139,14 @@ while ~opt && abs(gamma(1) - gamma0(1)) <= fp0.width/4 && ...
                 % X direction
                 if strcmp(dir1, 'east')
                     if ind_col > 1 && any(cellfun(@any, ...
-                            grid(:, ind_col - 1)), 'all')
+                            grid(:, 1:(ind_col - 1))), 'all')
 
                         % Move the grid leftwards
                         delta = delta - deltax*dirx;
                     end
                 else
                     if ind_col < size(grid, 2) && any(cellfun(@any, ...
-                            grid(:, ind_col + 1)), 'all')
+                            grid(:, (ind_col + 1):end)), 'all')
                         
                         % Move the grid rightwards
                         delta = delta + deltax*dirx;
@@ -152,14 +156,14 @@ while ~opt && abs(gamma(1) - gamma0(1)) <= fp0.width/4 && ...
                 % Y direction
                 if isequal(dir2, 'south') % downsweep = true. tour is moving to the bottom
                     if ind_row > 1 && any(cellfun(@any, ...
-                            grid(ind_row - 1, ind_col)), 'all')
+                            grid(1:(ind_row - 1), ind_col)), 'all')
 
                         % Move the grid upwards
                         delta = delta + deltay*diry;
                     end
                 else % tour is moving to the top
                     if ind_row < size(grid, 1) && any(cellfun(@any, ...
-                            grid(ind_row + 1, ind_col)), 'all')
+                            grid((ind_row + 1):end, ind_col)), 'all')
 
                         % Move the grid downwards
                         delta = delta - deltay*diry;
@@ -177,7 +181,8 @@ end
 gamma = gamma0;
 grid = grid2D(fp0, olapx, olapy, gamma, roi);
 count = 0;
-while isempty(grid) && count ~= 10
+delta = [0, 0];
+while isempty(grid) && count < 15
     count = count + 1;
     [cx, cy] = centroid(polyshape(roi(:, 1), roi(:, 2)));
     dirc = [cx - gamma0(1), cy - gamma0(2)];

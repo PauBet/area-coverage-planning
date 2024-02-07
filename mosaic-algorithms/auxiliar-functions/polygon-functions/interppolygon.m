@@ -36,9 +36,28 @@ for i=1:length(lon)-1
     if dist < epsilon; epsilon = dist; end % update minimum distance
 end
 
-% Perform interpolation of the latitude and longitude based on the 
-% minimum distance found
-[newlat, newlon] = interpm(lat, lon, ceil(epsilon/2));
+% Find number of regions of polygon
+roi0(end, :) = [];
+indnan = find(isnan(roi0(:, 1)));
+newlat = []; newlon = [];
+if ~isempty(indnan)
+    indnan(end) = size(roi0, 1)+1;
+    from = 1;
+    for i=1:length(indnan)
+        to = indnan(i)-1;
+        % Perform great circles interpolation of the latitude and longitude based
+        % on the minimum distance found
+        [auxlat, auxlon] = interpm(lat(from:to), lon(from:to), ...
+            ceil(epsilon/2), 'gc');
+        newlat = [newlat; auxlat; NaN];
+        newlon = [newlon; auxlon; NaN];
+        from = to + 2;
+    end
+else
+    % Perform great circles interpolation of the latitude and longitude based
+    % on the minimum distance found
+    [newlat, newlon] = interpm(lat, lon, ceil(epsilon/2), 'gc');
+end
 
 % Update the roi array with the interpolated latitude and longitude values
 roi(:, 2) = newlat; roi(:, 1) = newlon;

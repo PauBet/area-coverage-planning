@@ -1,12 +1,21 @@
-function plotTour(tour, fplist, roistruct, sc, target, video)
+function plotTour(tour, fplist, roistruct, sc, target, varargin)
 
 % Pre-allocate variables
 filename = strcat(lower(target),'-map.jpg');
 c1 = [0.72,0.27,1.00];
 c2 = [0.35,0.06,0.41];
-
-% Create figure
-ax = mapPlot(filename);
+if nargin > 5
+    ax = varargin{1};
+    if nargin > 6 
+        video = varargin{2};
+    else
+        video = [];
+    end
+else
+    % Create figure
+    ax = mapPlot(filename);
+    video = [];
+end
 
 % Plot region(s) of interest
 if ~isempty(video)
@@ -28,7 +37,7 @@ for i=1:length(fplist)
     % Plot footprint polygon
     poly = polyshape(fplist(i).bvertices(:, 1), fplist(i).bvertices(:, 2));
     h1 = plot(poly, 'FaceColor', c1, 'FaceAlpha', 0.2, 'EdgeColor', c2, ...
-        'LineWidth', 1, 'DisplayName', 'Footprint');
+        'LineWidth', 1.5, 'DisplayName', 'Footprint');
 
     % Plot coverage path
     if i > 1
@@ -61,7 +70,8 @@ end
 % Re-plot the ROI (for aesthetic purposes)
 for i=1:length(roistruct)
     roi = roistruct(i).vertices;
-    poly = polyshape(roi(:, 1), roi(:, 2));
+    [x, y] = amsplit(roi(:, 1), roi(:, 2));
+    poly = polyshape(x, y);
     h5 = plot(poly, 'EdgeColor', 'k', 'LineWidth', 1.5, 'FaceColor', 'none', ...
         'DisplayName', roistruct(i).name);
 end

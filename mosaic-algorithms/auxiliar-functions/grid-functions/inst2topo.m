@@ -21,6 +21,8 @@ for i=1:size(grid, 1)
             if found
                 [~, lon, lat] = cspice_reclat(xpoint);
                 grid_topo{i, j} = [lon*cspice_dpr, lat*cspice_dpr];
+            else
+                disp("Point not visible from the instrument")
             end
         end
     end
