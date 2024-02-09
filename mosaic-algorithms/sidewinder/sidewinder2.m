@@ -52,6 +52,7 @@ if speedUp, resolution = 'lowres';
 else, resolution = 'highres'; end
 resolution = 'lowres';
 amIntercept = false;
+[~, targetframe, ~] = cspice_cnmfrm(target); % target frame ID in SPICE
 
 % Future work: we need to solve this incompatibility... Anti-meridian and
 % visibility:
@@ -75,6 +76,7 @@ poly1 = polyshape(roi(:, 1), roi(:, 2));
 %% Sidewinder heuristics
 % The first time iteration is the starting time in the planning horizon
 t = startTime;
+t0 = t;
 
 % Boolean that defines when to stop covering the target area
 exit = false;
@@ -128,7 +130,7 @@ while ~exit && t < endTime
             fprintf('Computing %s FOV projection on %s at %s...', inst, ...
                 target, cspice_et2utc(t, 'C', 0));
             fprinti = footprint(t, inst, sc, target, resolution, a(1), a(2), 1);
-            v2 = fprinti.fovbsight;
+            % Body-fixed to inertial frame
 
             if ~isempty(fprinti.bvertices)
                 fprintf('\n')
@@ -150,12 +152,11 @@ while ~exit && t < endTime
                 fpList(end + 1) = fprinti;
 
                 % New time iteration
-                if exist("v1", 'var')
-                    t = t + tobs + slewDur(v1, v2, slewRate); % future work
-                else
-                    t = t + tobs;
+                if ~isempty(tour)
+                    p1 = [fprinti.olon, fprinti.olat];
+                    p2 = [tour{1}(1), tour{1}(2)];
+                    t = t + tobs + slewDur(p1, p2, t, inst, target, sc, slewRate);
                 end
-                v1 = v2;
 
                 % Future work: automated scheduling
                 % lastfp = fprinti;
