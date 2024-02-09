@@ -93,7 +93,6 @@ while ~exit && t < endTime
         fprintf('Computing %s FOV projection on %s at %s...', inst, ...
             target, cspice_et2utc(t, 'C', 0));
         fprinti = footprint(t, inst, sc, target, resolution, a(1), a(2), 1);
-        v2 = fprinti.fovbsight;
 
         if ~isempty(fprinti.bvertices)
             fprintf('\n')
@@ -119,12 +118,11 @@ while ~exit && t < endTime
             fpList(end + 1) = fprinti;
 
             % New time iteration
-            if exist("v1", 'var')
-                t = t + tobs + slewDur(v1, v2, slewRate); % future work
-            else
-                t = t + tobs;
+            if ~isempty(tour)
+                p1 = [fprinti.olon, fprinti.olat];
+                p2 = [tour{1}(1), tour{1}(2)];
+                t = t + tobs + slewDur(p1, p2, t, inst, target, sc, slewRate);
             end
-            v1 = v2;
             
             % Update roi
             roi    = interppolygon(poly1.Vertices);
