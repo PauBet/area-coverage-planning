@@ -2,5 +2,4 @@
 *.asv
 
 # Specific directories
-/paper/*
 /alternative_method/*
