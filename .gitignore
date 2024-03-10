@@ -1,8 +1,5 @@
-# MATLAB cache files
+# Temp files & cache
 *.asv
 
-# Output videos
-*.avi
-
-# SPICE Home
-/SPICE
+# Specific directories
+/alternative_method/*
