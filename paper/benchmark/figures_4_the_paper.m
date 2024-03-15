@@ -7,7 +7,7 @@ input_data;
 
 % Choose mosaic algorithm: 'sidewinder', 'r_sidewinder', 'onlinefrontier',
 % 'gridnibbler'
-tilealg = 'neighbours';
+tilealg = 'gridnibbler';
 
 % Coverage figure:
 % This figure plots the FOV footprint in a 2D topography map of the target 
@@ -69,9 +69,11 @@ for i=1:length(roistruct)
             t(i) = toc;
 
 
-        case 'neighbours'
-            A = neighbour_placement(startTime, tobs, inst, '-77', ...
-                target, roi, ax);
+        case 'gridnibbler'
+            tic
+            [A, fplist, count(i)] = neighbour_placement_2(inittime, tobs, inst, sc, ...
+                             target, roi, slew_rate);
+            t(i) = toc;
     end
 
     % Get coverage, overlap and makespan

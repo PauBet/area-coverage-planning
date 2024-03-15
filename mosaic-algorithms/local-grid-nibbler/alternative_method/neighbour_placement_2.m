@@ -24,7 +24,6 @@ function [A, fplist, count] = neighbour_placement_2(startTime, tobs, inst, sc, .
     target_fixed = append('IAU_',target_body);     
 
     %Simplify the footprint call for readability
-    %footprint_func = @(x,y,z) footprint_gn(z, inst, sc, target_body, 'lowres', x, y, 1);
     footprint_func = @(x,y,z) footprint_gn(z, inst, sc, target_body, 'lowres', x, y, 1);
 
     %Obtain an example to prepare the fpList struct (allocation)
