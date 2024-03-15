@@ -1,7 +1,7 @@
 % Mosaic comparison between the different heuristics
 
 %% Relevant paths
-kernelpath = '/Users/paulabetriu/Desktop/GitHub/area-coverage-planning/input';
+kernelpath = '/Users/paulabetriu/Desktop/GitHub/area-coverage-planning-2-ref/input';
 resslib    = '/Users/paulabetriu/Desktop/GitHub/SPICElib'; % library of
 % SPICE functions (specially relevant for SPICE initialization in this
 % program)
@@ -14,7 +14,7 @@ addpath(metricspath);
 
 % Enable the access to the folders with the mosaic algorithms
 addpath(genpath(pwd));
-addpath(genpath('/Users/paulabetriu/Desktop/GitHub/area-coverage-planning/'))
+addpath(genpath('/Users/paulabetriu/Desktop/GitHub/area-coverage-planning-2/'))
 
 %% Case study
 % Define mission and spacecraft (SPICE ID of the spacecraft)
@@ -46,20 +46,20 @@ speedUp = 0;
 count = 0;
 
 % Regions of interest
-% Pwyll Crater
-count = count + 1;
-roi = [ 78   -18;
-        90   -14;
-       109   -13;
-       101   -23;
-        99   -30;
-        85   -33;
-        71   -28;];
-roistruct(count).vertices = roi;
-[cx, cy] = centroid(polyshape(roi(:, 1), roi(:, 2)));
-roistruct(count).cpoint = [cx, cy];
-roistruct(count).inittime = cspice_str2et('1998 MAR 29 12:38:00.000 TDB'); % closest approach
-roistruct(count).name = "Pwyll Crater";
+% % Pwyll Crater
+% count = count + 1;
+% roi = [ 78   -18;
+%         90   -14;
+%        109   -13;
+%        101   -23;
+%         99   -30;
+%         85   -33;
+%         71   -28;];
+% roistruct(count).vertices = roi;
+% [cx, cy] = centroid(polyshape(roi(:, 1), roi(:, 2)));
+% roistruct(count).cpoint = [cx, cy];
+% roistruct(count).inittime = cspice_str2et('1998 MAR 29 12:38:00.000 TDB'); % closest approach
+% roistruct(count).name = "Pwyll Crater";
 
 % % Annwn Regio [lon, lat] = [40, 20]º
 % count = count + 1;
@@ -96,19 +96,19 @@ roistruct(count).name = "Pwyll Crater";
 % roistruct(count).cpoint = [cx, cy];
 % roistruct(count).name = "Cilix Crater";
 % roistruct(count).inittime = cspice_str2et('1998 MAR 29 13:40:00.000 TDB'); % closest approach
-% 
-% % Tara Regio
-% count = count + 1;
-% roi = [-55   20;
-%        -95   20;
-%        -95  -20;
-%        -55  -20;];
-% roistruct(count).vertices = roi;
-% [cx, cy] = centroid(polyshape(roi(:, 1), roi(:, 2)));
-% roistruct(count).cpoint = [cx, cy];
-% roistruct(count).name = "Tara Regio";
-% roistruct(count).inittime = cspice_str2et('1998 MAR 29 14:02:00.000 TDB');
-% 
+
+% Tara Regio
+count = count + 1;
+roi = [-55   20;
+       -95   20;
+       -95  -20;
+       -55  -20;];
+roistruct(count).vertices = roi;
+[cx, cy] = centroid(polyshape(roi(:, 1), roi(:, 2)));
+roistruct(count).cpoint = [cx, cy];
+roistruct(count).name = "Tara Regio";
+roistruct(count).inittime = cspice_str2et('1998 MAR 29 14:02:00.000 TDB');
+% % 
 % % Taliesin
 % count = count + 1;
 % roi = [-160  -10;

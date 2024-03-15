@@ -95,26 +95,26 @@ count = 0;
 % roistruct(count).name = "Cilix Crater";
 % roistruct(count).inittime = cspice_str2et('1998 MAR 29 13:40:00.000 TDB'); % closest approach
 % 
-% % Tara Regio
-% count = count + 1;
-% roi = [-55   20;
-%        -95   20;
-%        -95  -20;
-%        -55  -20;];
-% roistruct(count).vertices = roi;
-% [cx, cy] = centroid(polyshape(roi(:, 1), roi(:, 2)));
-% roistruct(count).cpoint = [cx, cy];
-% roistruct(count).name = "Tara Regio";
-% roistruct(count).inittime = cspice_str2et('1998 MAR 29 14:02:00.000 TDB');
-
-% Taliesin
+% Tara Regio
 count = count + 1;
-roi = [-160  -10;
-       -160  -30;
-       -130  -30;
-       -130  -10;]; % roi of roi polygon
+roi = [-55   20;
+       -95   20;
+       -95  -20;
+       -55  -20;];
 roistruct(count).vertices = roi;
 [cx, cy] = centroid(polyshape(roi(:, 1), roi(:, 2)));
 roistruct(count).cpoint = [cx, cy];
-roistruct(count).name = "Taliesin";
-roistruct(count).inittime = cspice_str2et('1998 MAR 29 14:21:00.000 TDB');
+roistruct(count).name = "Tara Regio";
+roistruct(count).inittime = cspice_str2et('1998 MAR 29 14:02:00.000 TDB');
+
+% % Taliesin
+% count = count + 1;
+% roi = [-160  -10;
+%        -160  -30;
+%        -130  -30;
+%        -130  -10;]; % roi of roi polygon
+% roistruct(count).vertices = roi;
+% [cx, cy] = centroid(polyshape(roi(:, 1), roi(:, 2)));
+% roistruct(count).cpoint = [cx, cy];
+% roistruct(count).name = "Taliesin";
+% roistruct(count).inittime = cspice_str2et('1998 MAR 29 14:21:00.000 TDB');
