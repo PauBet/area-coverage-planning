@@ -1,7 +1,7 @@
 % Mosaic comparison between the different heuristics
 
 %% Relevant paths
-kernelpath = '/Users/paulabetriu/Desktop/GitHub/area-coverage-planning-2-ref/input';
+kernelpath = '/Users/paulabetriu/Desktop/GitHub/area-coverage-planning/input';
 resslib    = '/Users/paulabetriu/Desktop/GitHub/SPICElib'; % library of
 % SPICE functions (specially relevant for SPICE initialization in this
 % program)
