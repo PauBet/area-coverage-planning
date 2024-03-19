@@ -14,7 +14,7 @@ input_data_fig1;
 %    stoptime, tcadence, inst, sc, target, roi, olapx, olapy, 3*1e-3, 0);
 
 [A, fpList] = neighbour_placement_2(roistruct(1).inittime, tcadence, inst, sc, ...
-    target, roi, 3*1e-3);
+    target, roi, olapx, olapy, 3*1e-3);
 
 % Plot tour
 plotTour(A, fpList, roistruct, sc, target)

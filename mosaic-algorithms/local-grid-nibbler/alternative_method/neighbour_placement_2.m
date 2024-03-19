@@ -1,20 +1,47 @@
 function [A, fplist, count] = neighbour_placement_2(startTime, tobs, inst, sc, ...
-    target_body, roi, slewRate)
-
+    target_body, roi, olapx, olapy, slewRate)
     
-    %% Generating tour and choosing first point
-    %Generating the tour provides with an starting point and a coverage
-    %path direction
 
-    [tour] = get_tour_first(startTime, inst, sc, ...
-    target_body, roi);
-   
-    %The first point in the tour becomes the first target
-    target = tour{1};
+    inroi = roi;
+    % Check ROI visible area from spacecraft
+    [vsbroi, ~, visibilityFlag] = visibleroi(roi, startTime, target_body, sc); % polygon vertices of
+    % the visible area
+    if visibilityFlag
+        disp("ROI is not visible from the instrument");
+        return;
+    end
+    roi = interppolygon(vsbroi); % interpolate polygon vertices (for improved
+    % accuracy)
     
     %% Preparing ROI
     %Update ROI in case there is an antimeridian cut, transform it to a more convenient way 
-    [roi, ~, ~] = check_antimeridian_cut(roi);
+    % Previous anti-meridian intersection check...
+    ind = find(diff(sort(inroi(:, 1))) >= 180, 1); % find the discontinuity index
+    if ~isempty(ind)
+        amIntercept = true;
+        roi = inroi;
+        roi(roi(:, 1) < 0, 1) = roi(roi(:, 1) < 0, 1) + 360; % adjust longitudes
+        [roi(:, 1), roi(:, 2)] = sortcw(roi(:, 1), roi(:, 2)); % sort
+        % coordinates clockwise
+    end
+
+    %% Generating tour and choosing first point
+    %Generating the tour provides with an starting point and a coverage
+    %path direction
+    [gamma(1), gamma(2)] = centroid(polyshape(roi(:, 1), roi(:, 2)));
+    fprintc = footprint(startTime, inst, sc, target_body, 'lowres', ...
+        gamma(1), gamma(2), 1); % centroid footprint
+    tour = planSidewinderTour(target_body, roi, sc, inst, startTime, olapx, olapy, fprintc.angle);
+    %[tour] = get_tour_first(startTime, inst, sc, ...
+    %target_body, roi);
+    
+    [aux, ~, flag] = check_antimeridian_cut(inroi);
+    if flag
+        roi = aux; 
+    end
+
+    %The first point in the tour becomes the first target
+    target = tour{1};
  
     %Create a polyshape object of the ROI that will be updated as it is covered 
     poly_roi = polyshape(roi);
@@ -47,7 +74,7 @@ function [A, fplist, count] = neighbour_placement_2(startTime, tobs, inst, sc, .
 
     %% MOSAIC LOOP
 
-    while s_area>s_area_zero*error_perc 
+    while s_area>s_area_zero*error_perc && n < 100
 
         %% Compute the footprint and the neighbours
 
@@ -61,9 +88,8 @@ function [A, fplist, count] = neighbour_placement_2(startTime, tobs, inst, sc, .
             count = count + 1;
 
             % Neighbours coordinates computed before updating time (first iteration all are computed)
-            
             for i = 1:8
-                [neighbours(i,:)] = get_neighbour_coordinates(target_body,time,rotmatrix,sc,inst,target_fixed,target,i);
+                [neighbours(i,:)] = get_neighbour_coordinates(fprintc.angle,target_body,time,rotmatrix,sc,inst,target_fixed,target,i);
             end
 
             % Compute the coverage of the current footprint over the real ROI    
@@ -74,7 +100,7 @@ function [A, fplist, count] = neighbour_placement_2(startTime, tobs, inst, sc, .
             ptime = time*ones(1,8);
 
             % If the actual footprint covers part of the real ROI save it and move
-            % to the next instant               
+            % to the next instant
             if fpcoverage >= 0.2
                 % Compute the remaining area after substracting the footprint to the
                 % ROI
@@ -85,7 +111,7 @@ function [A, fplist, count] = neighbour_placement_2(startTime, tobs, inst, sc, .
                 fplist(end + 1) = target_fp;
                 % Possible update times based on neighbours
                 for i = 1:8
-                    ptime(i) = time + tobs + slewDur(target, neighbours(i,:), time, inst, target_body, sc, slewRate);
+                    ptime(i) = time + tobs + slewDur(target, neighbours(i,:), time, tobs, inst, target_body, sc, slewRate);
                 end
             end
 
@@ -129,7 +155,7 @@ function [A, fplist, count] = neighbour_placement_2(startTime, tobs, inst, sc, .
             % )
             
             for i = neigh_indexes
-                [neighbours(i,:)] = get_neighbour_coordinates(target_body,time,rotmatrix,sc,inst,target_fixed,target,i);
+                [neighbours(i,:)] = get_neighbour_coordinates(fprintc.angle, target_body,time,rotmatrix,sc,inst,target_fixed,target,i);
             end
             
             % If the first footprint does not meet the minimum area
@@ -147,7 +173,7 @@ function [A, fplist, count] = neighbour_placement_2(startTime, tobs, inst, sc, .
                 fplist(end + 1) = target_fp;
                 % Possible update times based on neighbours
                 for i = neigh_indexes
-                    ptime(i) = time + tobs + slewDur(target, neighbours(i,:), time, inst, target_body, sc, slewRate);
+                    ptime(i) = time + tobs + slewDur(target, neighbours(i,:), time, tobs, inst, target_body, sc, slewRate);
                 end
             end
             

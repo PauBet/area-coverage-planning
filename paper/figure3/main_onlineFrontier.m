@@ -14,8 +14,8 @@ roiname(isspace(roiname)) = [];
 name = ['post_process_',roiname];
 
 % Online Frontier
-[A, fpList] = frontierRepair2(roistruct(1).inittime, ...
-    stoptime, tcadence, inst, sc, target, roi, olapx, olapy, 3*1e-3, 0);
+[A, fpList] = frontierRepair(roistruct(1).inittime, ...
+    stoptime, tcadence, inst, sc, target, roi, olapx, olapy, 3*1e-3);
 
 % Plot tour
 plotTour(A, fpList, roistruct, sc, target)

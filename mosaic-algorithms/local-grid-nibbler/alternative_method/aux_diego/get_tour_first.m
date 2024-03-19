@@ -45,7 +45,7 @@ function [tour, roi] = get_tour_first(inittime, inst, sc, ...
     gt2 = groundtrack(sc, inittime + 500, target);
     gt1 = topo2inst(gt1, cx, cy, target, sc, inst, inittime);
     gt2 = topo2inst(gt2, cx, cy, target, sc, inst, inittime + 500);
-    [dir1, dir2] = closestSide2(gt1, gt2, targetArea, angle);
+    [dir1, dir2] = closestSide(gt1, gt2, targetArea, -angle);
     
     % Build reference tile
     [~, ~, ~, bounds] = ...
@@ -53,7 +53,7 @@ function [tour, roi] = get_tour_first(inittime, inst, sc, ...
     [~, width, height, ~] = minimumWidthDirection(bounds(1, :), bounds(2, :));
     fpref.width = width;
     fpref.height = height;
-    fpref.angle = angle;
+    fpref.angle = -angle;
 
     % Focal plane grid discretization
     [grid, ~, ~] = grid2D(fpref, ovlapx, ovlapy, origin, targetArea);

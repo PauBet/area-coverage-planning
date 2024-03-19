@@ -5,14 +5,12 @@ function [frontier, indel] = getFrontierTiles(map)
 % Programmers:  Paula Betriu (UPC/ESEIAAT)
 % Date:         09/2022
 % 
-% Usage:        [frontier, indel] = getFrontierTiles(map, tour)
+% Usage:        [frontier, indel] = getFrontierTiles(map)
 %
 % Inputs:
 %   > map:          cell matrix of grid points. In order to avoid
 %                   mapping boundaries, map is bounded by NaN rows and 
 %                   columns (first and last)
-%   > gamma0:       previous observation point. This is the exception
-%                   element, i.e., 
 % 
 % Outputs:
 %   > frontier:     cell array that contains the frontier tiles in the map
