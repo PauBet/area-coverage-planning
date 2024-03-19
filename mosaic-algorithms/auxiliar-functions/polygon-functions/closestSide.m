@@ -1,29 +1,30 @@
-function [dir1, dir2] = closestSide(target, sc, t, targetArea, angle)
-% Given a region-of-interest, this function defines what is the spacecraft
-% ground track position with respect to the edges of the target area
+function [dir1, dir2] = closestSide(gt1, gt2, targetArea, angle)
+% Given a region-of-interest, this function calculates the spacecraft
+% ground track position with respect to the edges of the target area. It
+% also determines the direction in which the spacecraft is moving relative
+% to the target area. The target area is rotated based on the specified
+% angle to align with the instrument's observation footprint.
 %
 % Programmers:  Paula Betriu (UPC/ESEIAAT)
 % Date:         10/2022
 % 
-% Usage:        cside = closestSide(target, sc, t, roi)
+% Usage:        [dir1, dir2] = closestSide(gt1, gt2, targetArea, angle)
 %
 % Inputs:
-%   > target:       SPICE string name of the target body
-%   > sc:           SPICE string name of the spacecraft
-%   > t:            time in TDB seconds past J2000 epoch
-%   > roi:          matrix containing the vertices of the ROI polygon. The
-%                   vertex points are expressed in 2D latitudinal coord. 
-%       # roi(:,1) correspond to the x values of the vertices
-%       # roi(:,2) correspond to the y values of the vertices
+%   > gt1:          initial ground track position ([lon, lat]) of the
+%                   spacecraft, in [deg]
+%   > gt2:          subsequent ground track position ([lon, lat]) of the
+%                   spacecraft, in [deg]
+%   > targetArea:   matrix containing the vertices of the target area. The
+%                   vertex points are expressed in 2D latitudinal coord.
+%   > angle:        rotation angle of the observation footprint axes 
+%                   relative to the target area, in [deg]
 % 
 % Outputs:
-%   > cside:        string defining the spacecraft ground track position
-%                   with respect to the roi, i.e. 'up', 'down', 'left' or
-%                   'right'
-
-% Parameters
-[~, targetFrame, ~] = cspice_cnmfrm(target); % target body-fixed reference 
-% frame
+%   > dir1:         closest side of the target area to the spacecraft's
+%                   initial position ('north', 'south', 'east', 'west')
+%   > dir2:         direction of the spacecraft's movement relative to the
+%                   target area ('north', 'south', 'east', 'west')
 
 % Rotate roi according to the footprint's angle
 angle = -angle*cspice_rpd;
@@ -36,31 +37,21 @@ for j=1:length(targetArea)
         [cx, cy]');
 end
 
-% Compute spacecraft sub-observer point to see what side of the target
-% area is closer to it
+% Adjust ground track position for spacecraft movement analysis with
+% respect to the oriented area
 % Assumption: Tri-axial ellipsoid to model the target surface
-subobs = cspice_subpnt('NEAR POINT/ELLIPSOID', target, t,...
-    targetFrame, 'NONE', sc);
-[~, sclon, sclat] = cspice_reclat(subobs); % latitudinal coordinates
-sclon = sclon*cspice_dpr; sclat = sclat*cspice_dpr; % [rad] to [deg]
-
+% Initial position
+sclon = gt1(1); sclat = gt1(2);
 aux = [cx, cy]' + rotmat*([sclon; sclat] - ...
         [cx, cy]');
 sclon = aux(1); sclat = aux(2);
-
-% Compute spacecraft sub-observer point afterwards to determine if the
-% spacecraft is moving away or towards the closest side
-% Assumption: Tri-axial ellipsoid to model the target surface
-subobs_ = cspice_subpnt('NEAR POINT/ELLIPSOID', target, t + 5*60,...
-    targetFrame, 'NONE', sc);
-[~, sclon_, sclat_] = cspice_reclat(subobs_); % latitudinal coordinates
-sclon_ = sclon_*cspice_dpr; sclat_ = sclat_*cspice_dpr; % [rad] to [deg]
-
+% Subsequent position
+sclon_ = gt2(1); sclat_ = gt2(2);
 aux = [cx, cy]' + rotmat*([sclon_; sclat_] - ...
         [cx, cy]');
 sclon_ = aux(1); sclat_ = aux(2);
 
-% Find the 4 boundary vertices
+% Find the 4 boundary vertices of the rotated target area
 maxlon = max(roi(:, 1)); minlon = min(roi(:, 1));
 maxlat = max(roi(:, 2)); minlat = min(roi(:, 2));
 
@@ -73,8 +64,10 @@ ybox = ylimit([1 2 2 1 1]);
 % Define line between the centroid and the ground track
 x = [sclon cx];
 y = [sclat cy];
-[xi, yi] = polyxpoly(x, y, xbox, ybox);
+[xi, yi] = polyxpoly(x, y, xbox, ybox); % check if the line intersects 
+% with the boundary box to determine closest side
 
+% Determine closest side based on the intersection points
 if isempty(xi) % the ground track is inside the ROI's boundary box (no
     % intersection)
 
@@ -109,6 +102,7 @@ if isempty(xi) % the ground track is inside the ROI's boundary box (no
     end
 
 else
+    % Determine closest side based on the intersection point
     if abs(xi - maxlon) < 1e-2
         dir1 = 'east';
     elseif abs(xi - minlon) < 1e-2
@@ -120,6 +114,7 @@ else
     end
 
     % Determine if the spacecraft is moving towards or away from the cside
+    % based on the ground track positions
     dist  = norm([sclon, sclat] - [cx, cy]);
     dist_ = norm([sclon_, sclat_] - [cx, cy]);
     if dist_ < dist

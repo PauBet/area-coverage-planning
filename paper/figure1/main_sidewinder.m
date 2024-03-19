@@ -10,7 +10,7 @@ clc; close all; clear all;
 input_data_fig1;
 
 % Sidewinder
-[A, fpList] = sidewinder2(roistruct(1).inittime, ...
+[A, fpList] = sidewinder(roistruct(1).inittime, ...
     stoptime, tcadence, inst, sc, target, roi, olapx, olapy, 3*1e-3, 0);
 
 % Plot tour

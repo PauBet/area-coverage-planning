@@ -1,7 +1,7 @@
 % Zoom in
-xlim([30 70])
+xlim([30 80])
 ylim([0 40])
-xtick = 30:10:70;
+xtick = 30:10:80;
 ytick = 0:10:40;
 
 % x tick label
@@ -33,7 +33,7 @@ set(gca, 'XTick', xtick, 'YTick', ytick, 'XTickLabel', xtickstr, ...
 
 % Save figure [PDF]
 figpath = '.';
-set(gcf, 'Units', 'inches', 'Position', [3,3,6.8,6.3]);
+set(gcf, 'Units', 'inches', 'Position', [3,3,6.96,5.5]);
 pos = get(gcf, 'Position');
 set(gcf, 'PaperPositionMode', 'auto', 'PaperUnits', 'inches', ...
     'PaperSize', [pos(3), pos(4)]);

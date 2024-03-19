@@ -1,4 +1,9 @@
-function [neighbour] = get_neighbour_coordinates(target_body,et,target_orientation,obs,scinst,target_fixed,target,neigh_index)
+function [neighbour] = get_neighbour_coordinates(angle, target_body,et,target_orientation,obs,scinst,target_fixed,target,neigh_index)
+
+%
+rotmat = [cosd(angle)   -sind(angle)  0;
+          sind(angle)   cosd(angle)   0;
+          0                 0         1];
 
 %Obtains the instrument code
 [code_inst, ~] = cspice_bodn2c(scinst); 
@@ -19,6 +24,10 @@ targets = overlap*[-dist, 0, 1/overlap;
                    dist,-dist, 1/overlap;
                    0,-dist, 1/overlap;
                    -dist,-dist, 1/overlap;].';
+
+for i=1:size(targets, 2)
+    targets(:, i) = rotmat*targets(:, i);
+end
 
 neigh_directions = target_orientation*targets;
 

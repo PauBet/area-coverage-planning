@@ -10,8 +10,8 @@ clc; close all; clear all;
 input_data_fig1;
 
 % Sidewinder
-[A, fpList] = replanningSidewinder2(roistruct(1).inittime, ...
-    stoptime, tcadence, inst, sc, target, roi, olapx, olapy, 3*1e-3, speedUp);
+[A, fpList] = replanningSidewinder(roistruct(1).inittime, ...
+    stoptime, tcadence, inst, sc, target, roi, olapx, olapy, 3*1e-3);
 % Plot tour
 plotTour(A, fpList, roistruct, sc, target)
 

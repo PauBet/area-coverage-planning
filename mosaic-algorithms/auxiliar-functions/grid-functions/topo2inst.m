@@ -1,5 +1,33 @@
 function outputData = topo2inst(inputdata, lon, lat, target, sc, inst, et)
+% This function transforms a set of points from the topographic coordinate 
+% system(latitude and longitude on the target body) to the instrument frame 
+% coordinates.
+%
+% Programmers:  Paula Betriu (UPC/ESEIAAT)
+% Date:         09/2022
+% 
+% Usage:        outputData = topo2inst(inputdata, lon, lat, target, sc, inst, et)
+%
+% Inputs:
+%   > inputdata:    cell array or matrix of points in topographic 
+%                   coordinates to be transformed. Each point is a row with 
+%                   [longitude, latitude] format
+%   > lon:          longitude of the observation point or area center, in
+%                   [deg]
+%   > lat:          latitude of the observation point or area center, in
+%                   [deg]
+%   > target:       string name of the target body
+%   > sc:           string name of the spacecraft
+%   > inst:         string name of the instrument
+%   > et:           ephemeris time, TDB seconds past J2000 epoch
+% 
+% Outputs:
+%   > outputData:   A cell array or matrix of the input points transformed 
+%                   to the instrument frame coordinates. The format of the 
+%                   output matches the input (cell array or matrix)
 
+% Handle input data in cell format, ensuring all empty entries are replaced
+% with [NaN, NaN]
 if iscell(inputdata)
     for i=1:size(inputdata, 1)
         for j=1:size(inputdata, 2)
@@ -23,9 +51,10 @@ end
 [fovbounds, boresight, rotmat] = instpointing(inst, target, sc, et, lon, lat);
 vertex = cspice_spkpos(sc, et, targetframe, 'NONE', target);
 point = vertex + fovbounds(:, 1);
+% Create a plane based on the boresight and a point in the focal plane
 plane = cspice_nvp2pl(boresight, point);
 
-% Intersect topoPoints with focal plane
+% For each topographic point, find its intersection with the focal plane
 spoint = zeros(size(topoPoints, 1), 3);
 for i=1:size(topoPoints, 1)
     if ~isnan(topoPoints(i, :))
@@ -43,15 +72,18 @@ end
 tArea = zeros(size(spoint, 1), 3);
 for i=1:size(spoint, 1)
     if ~isnan(spoint(i, :))
-        vpoint = -(vertex - spoint(i, :)');
-        tArea(i, :) = rotmat\vpoint;
+        vpoint = -(vertex - spoint(i, :)'); % vector from spacecraft to 
+        % intersection point
+        tArea(i, :) = rotmat\vpoint; % apply inverse rotiation to transform
+        % to instrument frame
     else
         tArea(i, :) = nan(1, 3);
     end
 end
-instcoord = tArea(:, 1:2);
+instcoord = tArea(:, 1:2); % extract 2D instrument frame coordinates
 
-%
+% Prepare output data matching the format of the input, i.e., cell array or
+% matrix
 outputData = cell(size(inputdata));
 if iscell(inputdata)
     for k=1:length(ii)

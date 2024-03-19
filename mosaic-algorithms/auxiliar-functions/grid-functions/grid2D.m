@@ -1,4 +1,4 @@
-function [matrixGrid, dirx, diry] = grid2D(fpref, ovlapx, ovlapy, ...
+function [matrixGrid, dirx, diry] = grid2D(fpref, olapx, olapy, ...
     gamma, targetArea)
 % Grid discretization (using flood-fill algorithm) of a region of interest
 % given a reference footprint (unit measure to create the allocatable
@@ -15,11 +15,14 @@ function [matrixGrid, dirx, diry] = grid2D(fpref, ovlapx, ovlapy, ...
 %                   footprint. In this function, the following are needed:
 %      # sizex:     footprint size in the x direction (longitude), in deg
 %      # sizey:     footprint size in the y direction (latitude), in deg
+%      # angle:     footprint's orientation angle, in deg
 %                   See function 'footprint' for further information.
 %   > olapx:        grid footprint overlap in the x direction, in 
 %                   percentage
 %   > olapy:        grid footprint overlap in the y direction, in 
 %                   percentage
+%   > gamma:        seed ([lon, lat]) that initiates the grid flood-fill,
+%                   in deg
 %   > targetArea:   matrix containing the vertices of the ROI polygon. The
 %                   vertex points are expressed in 2D.
 %       # targetArea(:,1) correspond to the x values of the vertices
@@ -41,6 +44,10 @@ function [matrixGrid, dirx, diry] = grid2D(fpref, ovlapx, ovlapy, ...
 %            ¦    ⋮
 %            ∨
 %           (-)   
+%   > dirx:         unit vector representing the direction of the x-axis
+%                   in the grid
+%   > diry:         unit vector representing the direction of the y-axis in
+%                   the grid
 
 % Pre-allocate variables
 matrixGrid = {};
@@ -87,8 +94,8 @@ periArea(:, 2) = aux(k, 2);
 % Flood-fill algorithm to get the grid points of the oriented roi
 % gridPoints = floodFillAlgorithmPar(fpref.sizex, fpref.sizey, ovlapx, ...
 %  ovlapy, gamma, orientedArea, gridPoints, '8fill');
-gridPoints = floodFillAlgorithm(fpref.width, fpref.height, ovlapx, ...
- ovlapy, gamma, orientedArea, periArea, [], [], '4fill');
+gridPoints = floodFillAlgorithm(fpref.width, fpref.height, olapx, ...
+ olapy, gamma, orientedArea, periArea, [], [], '4fill');
 
 if ~isempty(gridPoints)
 
