@@ -1,4 +1,22 @@
-function [roi, roi_real, cut_roi] = check_antimeridian_cut(roi)
+function [roi, cut_roi] = check_antimeridian_cut(roi)
+% Given a ROI obtains its intersection points with the antimeridian line
+% and splits the ROI into two ROIs contained in the range of longitudes -180 +180
+%
+% Programmers: Diego Andía (UPC/ESEIAAT)
+% Date:        08/2023
+% Version:      1
+% Last update: 03/2024
+%
+% Usage:       [roi, roi_real, cut_roi] = check_antimeridian_cut(roi)
+%
+%
+% Inputs: 
+%    > roi: Coordinates in lon-lat of the region of interest
+% Outputs:
+%    > roi: Coordinates in lon-lat of the region of interest after
+%           applying the required adaptation                                                    
+%    > cut_roi: Flag that indicates if the roi has been splitted due 
+%           to antimeridian cut (1 -> True)
 
     max_lon = max(roi(:,1)); min_lon = min(roi(:,1)); 
 
@@ -15,11 +33,7 @@ function [roi, roi_real, cut_roi] = check_antimeridian_cut(roi)
                 roi(i,1) = roi(i,1) + 360;
             end    
         end         
-        roi_real = roi;
-        roi = [];
         roi = adapt_roi_cutted(roi_old);
-    else
-        roi_real = roi;
-    end   
+    end
 
 end
