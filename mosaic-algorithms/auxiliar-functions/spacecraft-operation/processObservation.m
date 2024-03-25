@@ -56,7 +56,7 @@ if a(1) > 180, a(1) = a(1) - 360; end
 % Compute the observation's footprint
 fprintf('Computing %s FOV projection on %s at %s...', inst, ...
     target, cspice_et2utc(t, 'C', 0));
-fprinti = footprint(t, inst, sc, target, resolution, a(1), a(2), 1);
+fprinti = footprint(t, inst, sc, target, resolution, a(1), a(2), 0);
 % Body-fixed to inertial frame
 
 if ~isempty(fprinti.bvertices)

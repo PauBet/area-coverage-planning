@@ -1,5 +1,10 @@
 function [neighbour] = get_neighbour_coordinates(angle, target_body,et,target_orientation,obs,scinst,target_fixed,target,neigh_index)
 
+% persistent counter;
+% if isempty(counter), counter = 1;
+% else, counter = counter + 1;
+% end
+% disp(counter)
 %
 rotmat = [cosd(angle)   -sind(angle)  0;
           sind(angle)   cosd(angle)   0;

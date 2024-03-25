@@ -74,7 +74,7 @@ function [A, fplist, count] = neighbour_placement_2(startTime, tobs, inst, sc, .
 
     %% MOSAIC LOOP
 
-    while s_area>s_area_zero*error_perc && n < 100
+    while s_area>s_area_zero*error_perc
 
         %% Compute the footprint and the neighbours
 
