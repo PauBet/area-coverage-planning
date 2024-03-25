@@ -124,6 +124,7 @@ while ~exit && t < endTime
 
     % Handle cases where the FOV projection is larger than the ROI area
     if length(tour) == 1
+        A{end + 1} = gamma;
         fpList(end+1) = fprintc;
         disp("FOV projection is larger than ROI surface")
         exit = true;

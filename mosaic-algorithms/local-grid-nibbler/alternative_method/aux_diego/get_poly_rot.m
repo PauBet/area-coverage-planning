@@ -1,5 +1,4 @@
 function [footprint_poly, rotation_mat, target_fp] =  get_poly_rot(target, time, footprint_func, rot_func)
-
 % This function computes the footprint for a given target and time in
 % lon-lat, also provides a polyshape version of the footprint (Matlab
 % implementation) and the rotation matrix that is necessary to generate the

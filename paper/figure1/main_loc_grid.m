@@ -28,7 +28,7 @@ set(gcf, 'Units', 'inches', 'Position', [3,3,9.2,6]);
 pos = get(gcf, 'Position');
 set(gcf, 'PaperPositionMode', 'auto', 'PaperUnits', 'inches', ...
     'PaperSize', [pos(3), pos(4)]);
-filename = fullfile(figpath, 'fig1_sidewinder');
+filename = fullfile(figpath, 'fig1_localgrid');
 print(gcf, filename, '-dpdf', '-r1200')
 
 % % Zoom in

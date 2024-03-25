@@ -7,7 +7,7 @@ input_data;
 
 % Choose mosaic algorithm: 'sidewinder', 'r_sidewinder', 'onlinefrontier',
 % 'gridnibbler'
-tilealg = 'Local Grid Nibbler';
+tilealg = 'Online Frontier';
 
 % Coverage figure:
 % This figure plots the FOV footprint in a 2D topography map of the target 
