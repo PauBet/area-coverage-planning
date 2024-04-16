@@ -99,14 +99,14 @@ t = startTime;
 % Boolean that defines when to stop covering the target area
 exit = false;
 
-while ~exit && t < endTime 
+while ~exit
 
     % Initial 2D grid layout discretization: the instrument's FOV is going
     % to be projected onto the uncovered area's centroid and the resulting
     % footprint shape is used to set the grid spatial resolution
     [gamma(1), gamma(2)] = centroid(polyshape(roi(:,1),roi(:,2)));
     fprintc = footprint(t, inst, sc, target, resolution, ...
-        gamma(1), gamma(2), 1);   % centroid footprint
+        gamma(1), gamma(2), 0);   % centroid footprint;
     
     % Initialize struct that saves footprints (sub-structs)
     if t == startTime
@@ -119,7 +119,7 @@ while ~exit && t < endTime
     % Discretize ROI area (grid) and plan Sidewinder tour based on a
     % Boustrophedon approach
     [tour, grid, itour, grid_dirx, grid_diry, dir1, dir2] = ...
-        planSidewinderTour(target, roi, sc, inst, t, olapx, olapy, fprintc.angle);
+        planSidewinderTour(target, roi, sc, inst, t, olapx, olapy);
     grid = cellfun(@(c) c', grid, 'UniformOutput', false); % transpose elements
 
     % Handle cases where the FOV projection is larger than the ROI area
@@ -132,7 +132,7 @@ while ~exit && t < endTime
     end
 
     seed = itour{1};
-    while ~isempty(tour)
+    while ~isempty(tour) && t < endTime 
         % Update origin and tour
         old_seed = seed;
         itour(1) = [];

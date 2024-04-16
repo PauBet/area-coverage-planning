@@ -1,5 +1,5 @@
 function [topo_tour, inst_grid, inst_tour, grid_dirx, grid_diry, sweepDir1, sweepDir2] = ...
-planSidewinderTour(target, roi, sc, inst, inittime, olapx, olapy, angle)
+planSidewinderTour(target, roi, sc, inst, inittime, olapx, olapy)
 % This function plans an observation tour using a modified Boustrophedon
 % decomposition method. It calculates an optimal path for observing a ROI
 % on a target body, considering the spacecraft's starting position.
@@ -28,10 +28,6 @@ planSidewinderTour(target, roi, sc, inst, inittime, olapx, olapy, angle)
 %                   in percentage (width)
 %   > olapy:        grid footprint overlap in the y direction (latitude),
 %                   in percentage (height)
-%   > angle:        observation angle, influencing the orientation of
-%                   observation footprints. In other words, it is the angle
-%                   that the footprint axes define with respect to the
-%                   reference axes of the topographical grid (east-north)
 % 
 % Outputs:
 %   > topo_tour:    tour path in topographical coordinates (lat/lon on the
@@ -55,6 +51,11 @@ origin = [0, 0]; % initialize grid origin for grid generation
 
 % Project ROI to the instrument plane
 targetArea = topo2inst(roi, cx, cy, target, sc, inst, inittime);
+
+% Get minimum width direction of the footprint
+angle = minimumWidthDirection(targetArea(:, 1), targetArea(:, 2)); %observation 
+% angle, influencing the orientation of observation footprints and,
+% therefore, the coverage path orientation
 
 % Closest polygon side to the spacecraft's ground track position (this
 % will determine the coverage path)
