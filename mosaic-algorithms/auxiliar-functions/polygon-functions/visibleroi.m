@@ -38,7 +38,7 @@ end
 flag = false; % assume the target area is visible from the instrument
 method = 'TANGENT/ELLIPSOID';
 [~, targetframe, ~] = cspice_cnmfrm(target); % body-fixed frame
-abcorr = 'XLT+S';
+abcorr = 'LT+S';
 corloc = 'CENTER';
 refvec = [0; 0; 1]; % first of the sequence of cutting half-planes
 ncuts  = 1e3; % number of cutting half-planes
@@ -56,14 +56,73 @@ soltol = 1.0d-7; % solution convergence tolerance
 lblon = lblon*cspice_dpr;
 lblat = lblat*cspice_dpr;
 
-% Check a.m. split
-ind2 = find(diff(sort(lblon)) >= 180, 1); % find the discontinuity 
-if ~isempty(ind2)
-    [lblon, lblat] = amsplit(lblon', lblat');
+% Check for north/south pole
+northpole = false;
+southpole = false;
+% Check north-pole:
+srfpoint = [0 90];
+angle = emissionang(srfpoint, et, target, obs);
+if angle < 90, northpole = true; end
+% Check south-pole:
+srfpoint = [0 -90];
+angle = emissionang(srfpoint, et, target, obs);
+if angle < 90, southpole = true; end
+
+% Case 1.
+if ~northpole && ~southpole
+    % Check a.m. split
+    ind2 = find(diff(sort(lblon)) >= 180, 1); % find the discontinuity
+    if ~isempty(ind2)
+        [lblon, lblat] = amsplit(lblon', lblat');
+    end
+    % Check if we are keeping the correct polygon (full disk polygons may be
+    % misleading, we can only guarantee through emission angle check)
+    exit = 0;
+    while ~exit
+        randPoint = [randi([-180 180]), randi([-90 90])];
+        if inpolygon(randPoint(1), randPoint(2), lblon, lblat)
+            angle = emissionang(randPoint, et, target, obs);
+            if angle < 85
+                exit = 1;
+                poly1 = polyshape(lblon, lblat);
+            end
+        else
+            angle = emissionang(randPoint, et, target, obs);
+            if angle < 85
+                exit = 1;
+                % This calculation is approximated, we should find a better way
+                % to find the complementary
+                %% [Future work]
+                lonmap = [-180 -180 180 180];
+                latmap = [-90    90  90 -90];
+                polymap = polyshape(lonmap, latmap);
+                poly1 = polyshape(lblon, lblat);
+                poly1 = subtract(polymap, poly1);
+            end
+        end
+    end
+else
+    % Case 2.
+    [lblon, indsort] = sort(lblon);
+    lblat = lblat(indsort);
+    if northpole || southpole
+        % Include northpole to close polygon
+        auxlon = lblon; auxlat = lblat;
+        lblon  = zeros(1, length(auxlon) + 2); 
+        lblat = zeros(1, length(auxlat) + 2);
+        if northpole
+            lblon(1) = -180; lblat(1) = 90;
+            lblon(end) = 180; lblat(end) = 90;
+        else
+            lblon(1) = -180; lblat(1) = -90;
+            lblon(end) = 180; lblat(end) = -90;
+        end
+        lblon(2:length(lblon)-1) = auxlon; lblat(2:length(lblat)-1) = auxlat;
+    end
+    poly1 = polyshape(lblon, lblat);
 end
 
 % roi and limb intersection
-poly1 = polyshape(lblon, lblat);
 poly2 = polyshape(roi(:, 1), roi(:, 2));
 inter = intersect(poly1, poly2);
 

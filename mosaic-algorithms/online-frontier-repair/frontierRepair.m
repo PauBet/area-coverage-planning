@@ -62,7 +62,7 @@ else
     resolution = 'lowres';
 end
 
-% Check ROI visible area from spacecraft
+% % Check ROI visible area from spacecraft
 [vsbroi, ~, visibilityFlag] = visibleroi(inroi, startTime, target, sc); % polygon vertices of
 % the visible area
 if visibilityFlag
@@ -116,6 +116,15 @@ while ~exit
         end
     end
 
+    % Check roi visibility
+    [vsbroi, ~, visibilityFlag] = visibleroi(roi, t, target, sc);
+    if visibilityFlag
+        disp("ROI no longer reachable");
+        break;
+    else
+        roi = interppolygon(vsbroi);
+    end
+
     % Discretize ROI area (grid) and plan Sidewinder tour based on a
     % Boustrophedon approach
     [tour, grid, itour, grid_dirx, grid_diry, dir1, dir2] = ...
@@ -123,7 +132,7 @@ while ~exit
     grid = cellfun(@(c) c', grid, 'UniformOutput', false); % transpose elements
 
     % Handle cases where the FOV projection is larger than the ROI area
-    if length(tour) == 1
+    if length(tour) < 1
         A{end + 1} = gamma;
         fpList(end+1) = fprintc;
         disp("FOV projection is larger than ROI surface")
@@ -132,11 +141,12 @@ while ~exit
     end
 
     seed = itour{1};
-    while ~isempty(tour) && t < endTime 
+    while ~isempty(tour) && t < endTime
+
         % Update origin and tour
         old_seed = seed;
         itour(1) = [];
-        
+
         % Process each point of the tour
         [A, tour, fpList, poly1, t] = processObservation(A, tour, ...
             fpList, poly1, t, slewRate, tobs, amIntercept, inst, sc, target, ...
@@ -146,7 +156,16 @@ while ~exit
         if isempty(poly1.Vertices), break; end
 
         % Update roi
-        roi = interppolygon(poly1.Vertices);
+        roi = poly1.Vertices;
+
+        % Check roi visibility
+        [vsbroi, ~, visibilityFlag] = visibleroi(roi, t, target, sc);
+        if visibilityFlag 
+            disp("ROI no longer reachable");
+            break;
+        else
+            roi = interppolygon(vsbroi);
+        end
         
         if isempty(tour)
             break;
@@ -171,6 +190,7 @@ while ~exit
     exit = true;
 end
 clear updateGrid;
+clear checkTaboo;
 
 % OK message
 fprintf('Online Frontier successfully executed\n')

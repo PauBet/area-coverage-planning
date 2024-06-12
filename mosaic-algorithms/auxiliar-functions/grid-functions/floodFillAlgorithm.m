@@ -93,7 +93,7 @@ end
 if inpolygon(gamma(1), gamma(2), targetArea(:,1), targetArea(:,2))
     inside = true;
 else
-    if abs(areaI - areaP)/area(fpshape) > 0.2
+    if abs(areaI - areaP)/area(fpshape) > 0.1
             inside = true;
     end
 end

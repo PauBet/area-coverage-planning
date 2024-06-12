@@ -409,14 +409,89 @@ footprint2map();
         % doing separately. The reason why it is not is because we need to sort
         % the vertices in clockwise order, and the sortcw algorithm for 2D does
         % not work with non-convex polygons...
+        
+        if isequal(fp.limb, 'total')
+            lblon = vertices(:, 1); lblat = vertices(:, 2);
+            % We need to discern between two different limb:
+            % 1.- Sub-spacecraft point is located at equator (observer-to-pole line is
+            % perpendicular to normal vector at the poles). In this case, limb's
+            % longitude cannot be > 180º
+            % 2.- Sub-spacecraft point is not located at equator. In this case, limb's
+            % longitude may be > 180º (and includes the north/south poles).
+            northpole = false;
+            southpole = false;
+            % Check north-pole:
+            srfpoint = [0 90];
+            angle = emissionang(srfpoint, t, target, sc);
+            if angle < 90, northpole = true; end
+            % Check south-pole:
+            srfpoint = [0 -90];
+            angle = emissionang(srfpoint, t, target, sc);
+            if angle < 90, southpole = true; end
 
-        %% Check if the footprint intersects the anti-meridian
-        % To ease the footprint representation on the topography map, we must
-        % consider the case where the footprint intercepts with the anti-meridian.
-        % If it does, we split the footprint in two polygons, cleaved by the line
-        % that the original footprint is crossing (a.m.)
-        [fp.bvertices(:, 1), fp.bvertices(:, 2)] = amsplit(vertices(:,1),...
-            vertices(:,2)); % save footprint vertices
+            % Case 1.
+            if ~northpole && ~southpole
+                % Check a.m. split
+                ind2 = find(diff(sort(lblon)) >= 180, 1); % find the discontinuity
+                if ~isempty(ind2)
+                    [lblon, lblat] = amsplit(lblon, lblat);
+                end
+                % Check if we are keeping the correct polygon (full disk polygons may be
+                % misleading, we can only guarantee through emission angle check)
+                exit = 0;
+                while ~exit
+                    randPoint = [randi([-180 180]), randi([-90 90])];
+                    if inpolygon(randPoint(1), randPoint(2), lblon, lblat)
+                        angle = emissionang(randPoint, t, target, sc);
+                        if angle < 85
+                            exit = 1;
+                        end
+                    else
+                        angle = emissionang(randPoint, t, target, sc);
+                        if angle < 85
+                            exit = 1;
+                            % This calculation is approximated, we should find a better way
+                            % to find the complementary
+                            %% [Future work]
+                            lonmap = [-180 -180 180 180];
+                            latmap = [-90    90  90 -90];
+                            polymap = polyshape(lonmap, latmap);
+                            poly1 = polyshape(lblon, lblat);
+                            poly1 = subtract(polymap, poly1);
+                            lblon = poly1.Vertices(:, 1);
+                            lblat = poly1.Vertices(:, 2);
+                        end
+                    end
+                end
+            else
+                % Case 2.
+                [lblon, indsort] = sort(lblon);
+                lblat = lblat(indsort);
+                if northpole || southpole
+                    % Include northpole to close polygon
+                    auxlon = lblon; auxlat = lblat;
+                    lblon  = zeros(1, length(auxlon) + 2);
+                    lblat = zeros(1, length(auxlat) + 2);
+                    if northpole
+                        lblon(1) = -180; lblat(1) = 90;
+                        lblon(end) = 180; lblat(end) = 90;
+                    else
+                        lblon(1) = -180; lblat(1) = -90;
+                        lblon(end) = 180; lblat(end) = -90;
+                    end
+                    lblon(2:length(lblon)-1) = auxlon; lblat(2:length(lblat)-1) = auxlat;
+                end
+            end
+            fp.bvertices(:, 1) = lblon; fp.bvertices(:, 2) = lblat;
+        else
+            % Check if the footprint intersects the anti-meridian
+            % To ease the footprint representation on the topography map, we must
+            % consider the case where the footprint intercepts with the anti-meridian.
+            % If it does, we split the footprint in two polygons, cleaved by the line
+            % that the original footprint is crossing (a.m.)
+            [fp.bvertices(:, 1), fp.bvertices(:, 2)] = amsplit(vertices(:,1),...
+                vertices(:,2)); % save footprint vertices
+        end
         
         if geom
             % Get minimum width direction and size

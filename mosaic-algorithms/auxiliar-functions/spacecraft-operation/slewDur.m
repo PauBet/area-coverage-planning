@@ -49,6 +49,7 @@ for i=1:maxit
 
     % Angle of rotation required
     angle = acos((trace(Rdelta) - 1)/2);
+    if angle >= pi/2, angle = pi - angle; end
 
     % Duration of the slew
     tdur = angle/slew_rate;
