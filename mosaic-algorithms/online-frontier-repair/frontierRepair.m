@@ -135,7 +135,6 @@ while ~exit
     if length(tour) < 1
         A{end + 1} = gamma;
         fpList(end+1) = fprintc;
-        disp("FOV projection is larger than ROI surface")
         exit = true;
         continue
     end

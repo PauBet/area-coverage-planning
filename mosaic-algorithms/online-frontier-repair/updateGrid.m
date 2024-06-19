@@ -403,7 +403,11 @@ if ~isempty(inst_tour)
     % Boustrophedon decomposition
     inst_grid = map2grid(map);
     inst_tour = boustrophedon(inst_grid, sweepDir1, sweepDir2);
-    seed = inst_tour{1};
+    if ~isempty(inst_tour)
+        seed = inst_tour{1};
+    else
+        seed = [];
+    end
     %inst_tour(emptyCells) = []; % remove empty cells
     %seed = inst_tour{1};
     % for i=1:length(emptyCells)

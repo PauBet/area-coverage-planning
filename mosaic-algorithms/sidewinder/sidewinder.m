@@ -114,11 +114,11 @@ while ~exit && t < endTime
     
     % Discretize ROI area (grid) and plan Sidewinder tour based on a
     % Boustrophedon approach
-    tour = planSidewinderTour(target, roi, sc, inst, t, olapx, olapy, ...
-        fprintc.angle);
+    tour = planSidewinderTour(target, roi, sc, inst, t, olapx, olapy);
     
     % Handle cases where the FOV projection is larger than the ROI area
-    if length(tour) == 1
+    if length(tour) < 1
+        A{end+1} = gamma;
         fpList(end+1) = fprintc;
         disp("FOV projection is larger than ROI surface")
         exit = true;
