@@ -128,17 +128,20 @@ while ~exit && t < endTime
     % Process each point of the tour if not in speedUp mode
     if ~speedUp
         while ~isempty(tour) && ~exit
-            [A, tour, fpList, poly1, t] = processObservation(A, tour, ...
+            [A, tour, fpList, poly1, t, flag] = processObservation(A, tour, ...
                 fpList, poly1, t, slewRate, tobs, amIntercept, inst, ...
                 sc, target, resolution);
 
             % Polygon completely covered
-            fprinti = fpList(end);
-            fparea = polyarea(fprinti.bvertices(:, 1), fprinti.bvertices(:, 2));
-            
-            % Stop criteria for small uncovered areas (w.r.t. footprint)
-            if area(poly1)/fparea < 1e-4, exit = true; end
-            %if isempty(poly1.Vertices), exit = true; end
+            if ~flag
+                fprinti = fpList(end);
+                fparea = polyarea(fprinti.bvertices(:, 1), ...
+                    fprinti.bvertices(:, 2));
+
+                % Stop criteria for small uncovered areas (w.r.t. footprint)
+                if area(poly1)/fparea < 1e-4, exit = true; end
+                %if isempty(poly1.Vertices), exit = true; end
+            end
         end
     end
     
