@@ -483,6 +483,38 @@ footprint2map();
                 end
             end
             fp.bvertices(:, 1) = lblon; fp.bvertices(:, 2) = lblat;
+
+        elseif isequal(fp.limb, 'partial')
+            lblon = vertices(:, 1); lblat = vertices(:, 2);
+            % Check north-pole visibility:
+            northpole = fovray(inst, target, sc, t, 0, 90, fp.olon, fp.olat);
+            % Check south-pole visibility:
+            southpole = fovray(inst, target, sc, t, 0, -90, fp.olon, fp.olat);
+
+            % Case 1.
+            if ~northpole && ~southpole
+                [lblon, lblat] = amsplit(lblon, lblat);
+            else
+                % Case 2.
+                [lblon, indsort] = sort(lblon);
+                lblat = lblat(indsort);
+                if northpole || southpole
+                    % Include northpole to close polygon
+                    auxlon = lblon; auxlat = lblat;
+                    lblon  = zeros(1, length(auxlon) + 2);
+                    lblat = zeros(1, length(auxlat) + 2);
+                    if northpole
+                        lblon(1) = -180; lblat(1) = 90;
+                        lblon(end) = 180; lblat(end) = 90;
+                    else
+                        lblon(1) = -180; lblat(1) = -90;
+                        lblon(end) = 180; lblat(end) = -90;
+                    end
+                    lblon(2:length(lblon)-1) = auxlon; lblat(2:length(lblat)-1) = auxlat;
+                end
+            end
+            fp.bvertices(:, 1) = lblon; fp.bvertices(:, 2) = lblat;
+
         else
             % Check if the footprint intersects the anti-meridian
             % To ease the footprint representation on the topography map, we must

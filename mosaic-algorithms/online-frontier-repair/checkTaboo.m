@@ -71,6 +71,24 @@ for i=size(map, 2):-1:1
     end
 end
 
+% Define the grid boundaries (starting rows and columns in the map)
+for i=1:size(map, 1)
+    el = find(~cell2mat(cellfun(@(x)any(isnan(x)), map(i, :), ...
+    'UniformOutput', false)), 1); % get non-NaN elements in the map
+    if ~isempty(el)
+        Orow = i;
+        break;
+    end
+end
+for i=1:size(map, 2)
+    el = find(~cell2mat(cellfun(@(x)any(isnan(x)), map(:, i), ...
+    'UniformOutput', false)), 1); % get non-NaN elements in the map
+    if ~isempty(el)
+        Ocol = i;
+        break;
+    end
+end
+
 % Taboo tiles search
 for i=1:length(Nind)
     taboo = false;
@@ -100,7 +118,7 @@ for i=1:length(Nind)
                 end
             else % tour is moving to the left (right -> left dir.)
                 if indel(1) == ind_row && indel(2) < ind_col 
-                    if dirChange && ind_col > 1
+                    if dirChange && ind_col > Ocol
                         taboo = true;
                     elseif ~dirChange
                         taboo = true;
@@ -122,7 +140,7 @@ for i=1:length(Nind)
 
             if isequal(dir2, 'south') % downsweep = true. tour is moving to the bottom
                 if indel(2) == ind_col && indel(1) < ind_row 
-                    if dirChange && ind_row > 1
+                    if dirChange && ind_row > Orow
                         taboo = true;
                     elseif ~dirChange
                         taboo = true;

@@ -44,14 +44,21 @@ for i=1:length(fplist)
     polyJ  = union(polyJ, polyFP);
 end
 
-% Coverage of all footprints
+% % Coverage of all footprints
 if ~isempty(polyJ.Vertices)
     lon = polyJ.Vertices(:, 1);
     lat = polyJ.Vertices(:, 2);
     [~, coverage] = regionarea(target, lon, lat);
 end
 coverage = sum(coverage); % if there are more than one regions, the 
-% coverage of those can be simply added
+% % coverage of those can be simply added
+% polymap = [-180 -90;
+%            -180  90;
+%             180  90;
+%             180 -90];
+% GA = area(polyshape(polymap));
+% FA = sum(area(polyJ));
+% coverage = FA*1e2/GA;
 
 % Coverage of overlap
 if ~isempty(polyO.Vertices)

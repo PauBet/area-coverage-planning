@@ -48,7 +48,7 @@ for i=1:length(fplist)
         end
     else
         h2 = [];
-        h3 = scatter(ax, tour{i}(1), tour{i}(2), 50, 'b', "filled", '^', ...
+        h3 = scatter(ax, tour{i}(1), tour{i}(2), 100, 'b', "filled", '^', ...
             'DisplayName', 'Start point');
     end
 
@@ -59,7 +59,7 @@ for i=1:length(fplist)
         h4 = scatter(ax, sclon, sclat, 8, 'c', "filled", 'DisplayName', 'Ground track');
     else
         h4 = [];
-        scatter(ax, sclon, sclat, 50, 'b', "filled", '^');
+        scatter(ax, sclon, sclat, 100, 'b', "filled", '^');
     end
     
     % Save animation
