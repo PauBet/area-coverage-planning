@@ -1,4 +1,25 @@
-function [tour] = boustrophedon(grid, dir1, dir2)
+function tour = boustrophedon(grid, dir1, dir2)
+% This function plans an observation tour over a specified grid, creating a
+% path that covers the area in alternating rows/columns, according to a 
+% specified input direction
+%
+% Programmers:  Paula Betriu (UPC/ESEIAAT)
+% Date:         09/2022
+% 
+% Usage:        tour = boustrophedon(grid, dir1, dir2)
+%
+% Inputs:
+%   > grid:        cell array where each cell contains the coordinates of
+%                  an observation point or is empty if there is no point
+%   > dir1:        primary direction of the sweep
+%   > dir2:        secondary direction of the sweep. This defines if the
+%                  traversal is going to be performed either in 
+%                  alternating rows or columns
+% 
+% Outputs:
+%   > tour:        ordered cell array of points representing the planned 
+%                  tour. Each element of the array is a 2-element vector 
+%                   indicating a point on the grid to be observed
 
 % Previous check...
 if isequal(dir1, 'north') || isequal(dir1, 'south')

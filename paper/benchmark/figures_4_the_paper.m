@@ -7,7 +7,7 @@ input_data;
 
 % Choose mosaic algorithm: 'sidewinder', 'r_sidewinder', 'onlinefrontier',
 % 'gridnibbler'
-tilealg = 'gridnibbler';
+tilealg = 'Online Frontier';
 
 % Coverage figure:
 % This figure plots the FOV footprint in a 2D topography map of the target 
@@ -49,30 +49,30 @@ for i=1:length(roistruct)
     strname(i) = roistruct(i).name;
 
     switch tilealg
-        case 'sidewinder'
+        case 'Sidewinder'
             tic
-            [A, fplist] = sidewinder2(inittime, stoptime, tobs, ...
+            [A, fplist] = sidewinder(inittime, stoptime, tobs, ...
                 inst, sc, target, roi, olapx, olapy, slew_rate, 0);
             t(i) = toc;
 
-        case 'r_sidewinder'
+        case 'Replanning Sidewinder'
             tic
-            [A, fplist] = replanningSidewinder2(inittime, ...
+            [A, fplist] = replanningSidewinder(inittime, ...
                 stoptime, tobs, inst, sc, target, roi, olapx, olapy, ...
-                slew_rate, 0);
+                slew_rate);
              t(i) = toc;
 
-        case 'onlinefrontier'
+        case 'Online Frontier'
             tic
-            [A, fplist] = frontierRepair2(inittime, stoptime, ...
-                tobs, inst, sc, target, roi, olapx, olapy, slew_rate, 0);
+            [A, fplist] = frontierRepair(inittime, stoptime, ...
+                tobs, inst, sc, target, roi, olapx, olapy, slew_rate);
             t(i) = toc;
 
 
-        case 'gridnibbler'
+        case 'Local Grid Nibbler'
             tic
             [A, fplist, count(i)] = neighbour_placement_2(inittime, tobs, inst, sc, ...
-                             target, roi, slew_rate);
+                             target, roi, olapx, olapy, slew_rate);
             t(i) = toc;
     end
 
@@ -82,7 +82,7 @@ for i=1:length(roistruct)
     nfp(i) = length(fplist);
 
     % Plot tour
-    plotTour(A, fplist, roistruct, sc, target, ax)
+    plotTour_m(A, fplist, roistruct, target, ax);
     drawnow
 
     % Re-plot the ROI (for aesthetic purposes)
@@ -91,6 +91,14 @@ for i=1:length(roistruct)
         close(v2);
     end
 end
+title(tilealg + " coverage map")
+% Save figure [PDF]
+set(gcf, 'Units', 'inches');
+pos = get(gcf, 'Position');
+set(gcf, 'PaperPositionMode', 'auto', 'PaperUnits', 'inches', ...
+    'PaperSize', [pos(3), pos(4)]);
+filename = [tilealg, '_coverage_map'];
+print(gcf, filename, '-dpdf', '-r600')
 
 varnames = ["ROI", "Coverage", "Overlap", "Num Footprints", "Makespan", "CPU Time"];
 tab = table(strname', coverage, overlap, nfp, makespan, t, 'VariableNames', varnames);

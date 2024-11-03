@@ -14,7 +14,7 @@ roiname(isspace(roiname)) = [];
 name = ['post_process_',roiname];
 
 % Sidewinder
-[A, fpList] = sidewinder2(roistruct(1).inittime, ...
+[A, fpList] = sidewinder(roistruct(1).inittime, ...
     stoptime, tcadence, inst, sc, target, roi, olapx, olapy, 3*1e-3, speedUp);
 
 % Plot tour

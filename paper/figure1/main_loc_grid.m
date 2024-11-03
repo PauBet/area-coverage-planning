@@ -14,7 +14,7 @@ input_data_fig1;
 %    stoptime, tcadence, inst, sc, target, roi, olapx, olapy, 3*1e-3, 0);
 
 [A, fpList] = neighbour_placement_2(roistruct(1).inittime, tcadence, inst, sc, ...
-    target, roi, 3*1e-3);
+    target, roi, olapx, olapy, 3*1e-3);
 
 % Plot tour
 plotTour(A, fpList, roistruct, sc, target)
@@ -28,7 +28,7 @@ set(gcf, 'Units', 'inches', 'Position', [3,3,9.2,6]);
 pos = get(gcf, 'Position');
 set(gcf, 'PaperPositionMode', 'auto', 'PaperUnits', 'inches', ...
     'PaperSize', [pos(3), pos(4)]);
-filename = fullfile(figpath, 'fig1_sidewinder');
+filename = fullfile(figpath, 'fig1_localgrid');
 print(gcf, filename, '-dpdf', '-r1200')
 
 % % Zoom in
