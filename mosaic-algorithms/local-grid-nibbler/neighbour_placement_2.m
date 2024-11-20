@@ -226,6 +226,20 @@ while s_area>s_area_zero*error_perc
     % target to the output variables, and update remaining ROI
     % related variables
     [ptime, A, fplist, s_area, poly_roi] = add_time_step(time, fpcoverage, poly_roi, poly_target_footprint, A, fplist, target, target_fp, neighbours, neigh_indexes, tobs, inst, target_body, sc, slewRate);
+    
+    % Stop criteria for small uncovered areas (w.r.t. footprint)
+    fp = fplist(end);
+    fparea = area(polyshape(fp.bvertices));
+    if s_area/fparea < 1e-4, break; end
+
+    % Check roi visibility
+    [vsbroi, ~, visibilityFlag] = visibleroi(poly_roi.Vertices, time, target_body, sc);
+    if visibilityFlag
+        disp("ROI no longer reachable");
+        break;
+    else
+        poly_roi.Vertices = interppolygon(vsbroi);
+    end
 
     % Select next target
     if s_area>s_area_zero*error_perc
