@@ -9,7 +9,7 @@ roiname(isspace(roiname)) = [];
 name = ['post_process_',roiname];
 
 % Define program iteration info
-td = cspice_str2et('1998 MAR 29 12:20:00.000 TDB'); % initial observation
+td = cspice_str2et('1998 MAR 29 12:30:00.000 TDB'); % initial observation
 % time
 N = 90; % number of iterations
 mkspan = zeros(1, N); % initialize mkspan array
