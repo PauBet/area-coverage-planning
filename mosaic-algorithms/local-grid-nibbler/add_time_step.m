@@ -56,6 +56,8 @@ ptime = time*ones(1,8);
 % If the actual footprint covers part of the real ROI save it and move
 % to the next instant               
 if fpcoverage >= 0.05
+    fprintf('Computing %s FOV projection on %s at %s...', inst, ...
+    target_body, cspice_et2utc(time, 'C', 0));
     % Compute the remaining area after substracting the footprint to the
     % ROI
     poly_roi = subtract(poly_roi,poly_target_footprint);
@@ -69,4 +71,5 @@ if fpcoverage >= 0.05
     end
 else
     s_area = area(poly_roi);
+end
 end

@@ -109,7 +109,7 @@ it = 0;
     target_fixed = append('IAU_',target_body);
 
     %Simplify the footprint call for readability(some inputs will be always the same e.g inst, sc, target_body, resolution)
-    footprint_func = @(x,y,z) footprint(z, inst, sc, target_body, 'lowres', x, y, 1);
+    footprint_func = @(x,y,z) footprint(z, inst, sc, target_body, 'lowres', x, y, 0);
 
     rot_func = @(x,y,z) instpointing(inst, target_body, sc, z, x, y);
 
