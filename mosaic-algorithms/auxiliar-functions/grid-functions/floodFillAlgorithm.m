@@ -93,7 +93,7 @@ end
 if inpolygon(gamma(1), gamma(2), targetArea(:,1), targetArea(:,2))
     inside = true;
 else
-    if abs(areaI - areaP)/area(fpshape) > 0.1
+    if abs(areaI - areaP)/area(fpshape) > 0.2
             inside = true;
     end
 end
@@ -109,7 +109,7 @@ if inside
     areaInter = areaT - areaI;
     fpArea = area(fpshape);
     
-    if areaInter/fpArea > 0.1
+    if areaInter/fpArea > 0.2
         gridPoints(end+1, :) = gamma;
         % pp = polyshape([gamma(1)-w/2, gamma(1)-w/2, gamma(1)+w/2, gamma(1) + w/2, gamma(1)-w/2],[gamma(2)+ h/2, gamma(2)- h/2, gamma(2)- h/2, gamma(2)+ h/2, gamma(2)+ h/2]);
         % plot(pp, 'FaceColor', [0.93,0.69,0.13], 'FaceAlpha', 0.2);

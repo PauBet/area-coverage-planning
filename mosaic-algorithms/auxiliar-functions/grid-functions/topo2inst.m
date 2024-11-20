@@ -60,13 +60,8 @@ for i=1:size(topoPoints, 1)
     if ~isnan(topoPoints(i, :))
         dir = -trgobsvec(topoPoints(i, :), et, target, sc);
         [found, spoint(i, :)] = cspice_inrypl(vertex, dir, plane);
-        if found
-            emnang = emissionang(topoPoints(i, :), et, target, sc);
-            if emnang >= 90, found = 0; end
-        end
         if found == 0
-            spoint(i, :) = nan(1, 3);
-            %disp("No intersection");
+            disp("No intersection");
         end
     else
         spoint(i, :) = nan(1, 3);
@@ -97,9 +92,7 @@ if iscell(inputdata)
         end
     end
 else
-    instcoord(isnan(instcoord(: ,1)), :) = [];
-    [aux(:, 1), aux(:, 2)] = sortcw(instcoord(:, 1), instcoord(:, 2));
-    outputData = aux;
+    outputData = instcoord;
 end
 
 end

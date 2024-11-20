@@ -15,6 +15,11 @@ function roi = interppolygon(roi0)
 % Output:
 %   > roi:      Updated roi with interpolated coordinates
 
+% Close polygon
+% Check if the first and the last point of the polygon are the same.
+% If not, add the first point to the end of the list to close the polygon.
+if any(roi0(1, :) ~= roi0(end, :)), roi0(end+1, :) = roi0(1, :); end
+
 % Definition of maximum allowable distance
 % Initialize variables to store longitude and latitude from the polygon.
 lon = roi0(:, 1);
@@ -32,6 +37,7 @@ for i=1:length(lon)-1
 end
 
 % Find number of regions of polygon
+roi0(end, :) = [];
 indnan = find(isnan(roi0(:, 1)));
 newlat = []; newlon = [];
 if ~isempty(indnan)
@@ -41,9 +47,7 @@ if ~isempty(indnan)
         to = indnan(i)-1;
         % Perform great circles interpolation of the latitude and longitude based
         % on the minimum distance found
-        latd = lat(from:to);
-        lond = lon(from:to);
-        [auxlat, auxlon] = interpm(latd, lond, ...
+        [auxlat, auxlon] = interpm(lat(from:to), lon(from:to), ...
             ceil(epsilon/2), 'gc');
         newlat = [newlat; auxlat; NaN];
         newlon = [newlon; auxlon; NaN];

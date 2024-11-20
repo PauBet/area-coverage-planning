@@ -44,9 +44,6 @@ function [A, tour, fpList, poly1, t, empty] = processObservation(A, tour, ...
 % Outputs:
 %   > A, tour, fpList, poly1, t: updated variables
 
-% Previous check...
-if isempty(tour), empty = true; return; end
-
 % Compute the footprint of each point in the tour successively and
 % subtract the corresponding area from the target polygon
 a = tour{1}; % observation
@@ -73,36 +70,21 @@ if ~isempty(fprinti.bvertices)
         poly2 = polyshape(fprinti.bvertices); % create footprint
         % polygon
     end
-    
-    % Check footprint-ROI intersect
-    targetpshape = poly1;
-    areaT = area(targetpshape);
-    inter = subtract(targetpshape, poly2);
-    areaI = area(inter);
-    areaInter = areaT - areaI;
-    fpArea = area(poly2);
 
-    if areaInter/fpArea == 0
-        empty = true;
-    else
-        A{end + 1} = a; % add it in the list of planned observations
-        poly1 = subtract(poly1, poly2); % update uncovered area
+    A{end + 1} = a; % add it in the list of planned observations
+    poly1 = subtract(poly1, poly2); % update uncovered area
 
-        % Save footprint struct
-        fpList(end + 1) = fprinti;
+    % Save footprint struct
+    fpList(end + 1) = fprinti;
 
-        % New time iteration
-        if ~isempty(tour)
-            p1 = [fprinti.olon, fprinti.olat];
-            p2 = [tour{1}(1), tour{1}(2)];
-            t = t + tobs + slewDur(p1, p2, t, tobs, inst, target, sc, slewRate);
-        end
+    % New time iteration
+    if ~isempty(tour)
+        p1 = [fprinti.olon, fprinti.olat];
+        p2 = [tour{1}(1), tour{1}(2)];
+        t = t + tobs + slewDur(p1, p2, t, tobs, inst, target, sc, slewRate);
     end
 else
     empty = true;
-end
-
-if empty
     fprintf(' Surface not reachable\n')
 end
 
