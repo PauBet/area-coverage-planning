@@ -1,4 +1,4 @@
-clc; close all; clear all;
+clc; clear all;
 % Revision of Sidewinder:
 % Grid is going to be built in the camera frame, instead of the body-fixed
 % frame. This is somewhat more complicated (it requires more calculations)
@@ -13,11 +13,12 @@ roiname(isspace(roiname)) = [];
 name = ['post_process_',roiname];
 
 % Define program iteration info
-td = cspice_str2et('1998 MAR 29 12:50:00.000 TDB'); % initial observation
+td = cspice_str2et('1998 MAR 29 12:30:00.000 TDB'); % initial observation
 % time
 N = 90; % number of iterations
 mkspan = zeros(1, N); % initialize mkspan array
 coverage = zeros(1, N); % initialize coverage array
+overlap  = zeros(1, N); % initialize coverage array
 nfp = zeros(1, N); % initialize number of acquisitions array
 step = 30; % time step in [sec]
 et = linspace(1, N);
@@ -36,7 +37,7 @@ for i=1:N
     % leg.String(end) = [];
     
     % Get coverage, number of acquisitions and makespan
-    coverage(i) = roicoverage(target, roi, fplist);
+    [coverage(i), overlap(i)] = roicoverage(target, roi, fplist);
     mkspan(i) = fplist(end).t + tcadence - fplist(1).t;
     nfp(i) = length(fplist);
     
