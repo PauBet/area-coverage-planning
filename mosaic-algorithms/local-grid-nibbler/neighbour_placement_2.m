@@ -245,4 +245,7 @@ end
 % The first element of the fplist is empty so it is removed
 fplist(1) = [];
 
+% OK message
+fprintf('Grid Nibbler successfully executed\n')
+
 end
