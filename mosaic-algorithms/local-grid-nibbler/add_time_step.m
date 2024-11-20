@@ -55,7 +55,7 @@ ptime = time*ones(1,8);
 
 % If the actual footprint covers part of the real ROI save it and move
 % to the next instant               
-if fpcoverage >= 0.2
+if fpcoverage >= 0.05
     % Compute the remaining area after substracting the footprint to the
     % ROI
     poly_roi = subtract(poly_roi,poly_target_footprint);

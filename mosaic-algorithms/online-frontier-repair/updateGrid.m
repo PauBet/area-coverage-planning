@@ -67,7 +67,7 @@ cout = {}; % set of disposable observations (inside or outside from 'tour')
 N    = {}; % set of new tiles (outside from 'tour')
 Nind = {}; % map indices of the new tiles
 X    = {}; % set of disposable tiles (inside of 'tour')
-epsilon = 0.05;
+epsilon = 0.02;
 
 % Build reference tile (it's always going to be the same in the subsequent
 % calls)
