@@ -2,19 +2,13 @@
 
 %% Relevant paths
 kernelpath = '/Users/paulabetriu/Desktop/GitHub/area-coverage-planning/input';
-resslib    = '/Users/paulabetriu/Desktop/GitHub/SPICElib'; % library of
-% SPICE functions (specially relevant for SPICE initialization in this
-% program)
-metricspath = '/Users/paulabetriu/Desktop/GitHub/science-opportunity/queries/geometric';
 
 % Add paths
 addpath(kernelpath);
-addpath(resslib);
-addpath(metricspath);
 
 % Enable the access to the folders with the mosaic algorithms
 addpath(genpath(pwd));
-addpath(genpath('/Users/paulabetriu/Desktop/GitHub/area-coverage-planning-2/'))
+addpath(genpath('/Users/paulabetriu/Desktop/GitHub/area-coverage-planning/'))
 
 %% Case study
 % Define mission and spacecraft (SPICE ID of the spacecraft)
