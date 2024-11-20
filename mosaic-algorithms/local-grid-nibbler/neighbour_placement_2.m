@@ -206,26 +206,33 @@ fpcoverage = neigh_coverage(next_target);
 
 %% MOSAIC LOOP
 % Add footprints until the ROI has been sufficiently covered
+flag = 0;
 while s_area>s_area_zero*error_perc
 
     % For each of the valid neighbours saved in neigh_indexes
     % compute the corresponding lon-lat coordinates at the current
     % target's imaging time (To ensure overlap)
     for i = neigh_indexes
-        [neighbours(i,:)] = get_neighbour_coordinates(fprintc.angle, target_body,ptime(next_target),rotmatrix,sc,inst,target_fixed,target,i);
+        [neighbours(i,:)] = get_neighbour_coordinates(fprintc.angle, ...
+            target_body,ptime(next_target),rotmatrix,sc,inst,...
+            target_fixed,target,i);
     end
 
     % Update the time variable with the last valid footprint added,
     % since footprints that do not provide coverage do not add to
     % the makespan, and are only used as a bridge between valid
     % footprints when creating the mosaic.
-    time = fplist(end).t;
+    time = ptime(next_target);
 
     % Check if the new target provides enough coverage, if TRUE
     % update possible imaging times of the neighbours, add new
     % target to the output variables, and update remaining ROI
-    % related variables
-    [ptime, A, fplist, s_area, poly_roi] = add_time_step(time, fpcoverage, poly_roi, poly_target_footprint, A, fplist, target, target_fp, neighbours, neigh_indexes, tobs, inst, target_body, sc, slewRate);
+    % related variable
+    
+    [ptime, A, fplist, s_area, poly_roi] = add_time_step(time, ...
+        fpcoverage, poly_roi, poly_target_footprint, A, fplist, ...
+        target, target_fp, neighbours, neigh_indexes, tobs, inst, ...
+        target_body, sc, slewRate);
     
     % Stop criteria for small uncovered areas (w.r.t. footprint)
     fp = fplist(end);
@@ -233,7 +240,8 @@ while s_area>s_area_zero*error_perc
     if s_area/fparea < 1e-4, break; end
 
     % Check roi visibility
-    [vsbroi, ~, visibilityFlag] = visibleroi(poly_roi.Vertices, time, target_body, sc);
+    [vsbroi, ~, visibilityFlag] = visibleroi(poly_roi.Vertices, ...
+        time, target_body, sc);
     if visibilityFlag
         disp("ROI no longer reachable");
         break;
@@ -243,7 +251,8 @@ while s_area>s_area_zero*error_perc
 
     % Select next target
     if s_area>s_area_zero*error_perc
-        [next_target, target_fp, poly_target_footprint, neigh_indexes, rotmatrix, fpcoverage, count] = select_next_target(neigh_indexes,neighbours,poly_roi,ptime,footprint_func,rot_func,count);
+        [next_target, target_fp, poly_target_footprint, neigh_indexes, ...
+            rotmatrix, fpcoverage, count] = select_next_target(neigh_indexes,neighbours,poly_roi,ptime,footprint_func,rot_func,count);
     end
 
     % If no valid neighbour is found (Dead-end)
