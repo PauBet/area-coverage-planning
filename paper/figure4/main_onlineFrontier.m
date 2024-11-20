@@ -18,8 +18,11 @@ coverage = zeros(1, N); % initialize coverage array
 overlap  = zeros(1, N); % initialize overlap array
 nfp = zeros(1, N); % initialize number of acquisitions array
 step = 30; % time step in [sec]
+et = linspace(1, N);
 
 for i=1:N
+    et(i) = td;
+
     % Online Frontier
     [A, fplist] = frontierRepair(td, stoptime, tcadence, inst, sc, ...
         target, roi, olapx, olapy, 3*1e-3);
@@ -38,15 +41,3 @@ for i=1:N
     % Next iteration
     td = td + step;    
 end
-
-figure
-plot(1:N, mkspan, 'b+:')
-
-figure
-plot(1:N, coverage, 'r^:')
-
-figure
-plot(1:N, nfp, 'g*:')
-
-% FOM post-process
-%run(name);

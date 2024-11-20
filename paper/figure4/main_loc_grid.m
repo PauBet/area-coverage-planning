@@ -13,24 +13,27 @@ roiname(isspace(roiname)) = [];
 name = ['post_process_',roiname];
 
 % Define program iteration info
-td = cspice_str2et('1998 MAR 29 12:10:00.000 TDB'); % initial observation
+td = cspice_str2et('1998 MAR 29 12:50:00.000 TDB'); % initial observation
 % time
-N = 15; % number of iterations
+N = 90; % number of iterations
 mkspan = zeros(1, N); % initialize mkspan array
 coverage = zeros(1, N); % initialize coverage array
 nfp = zeros(1, N); % initialize number of acquisitions array
 step = 30; % time step in [sec]
+et = linspace(1, N);
 
 for i=1:N
+    et(i) = td;
+
     % Grid Nibbler
     [A, fplist] = neighbour_placement_2(td, tcadence, inst, sc, ...
     target, roi, olapx, olapy, 3*1e-3);
 
-    % Plot tour
-    plotTour(A, fplist, roistruct, sc, target)
-    title(roistruct(1).name)
-    leg = legend('NumColumns', 2, 'Location', 'north');
-    leg.String(end) = [];
+    % % Plot tour
+    % plotTour(A, fplist, roistruct, sc, target)
+    % title(roistruct(1).name)
+    % leg = legend('NumColumns', 2, 'Location', 'north');
+    % leg.String(end) = [];
     
     % Get coverage, number of acquisitions and makespan
     coverage(i) = roicoverage(target, roi, fplist);
@@ -40,12 +43,3 @@ for i=1:N
     % Next iteration
     td = td + step;    
 end
-
-figure
-plot(1:N, mkspan, 'b+:')
-
-figure
-plot(1:N, coverage, 'r^:')
-
-figure
-plot(1:N, nfp, 'g*:')
