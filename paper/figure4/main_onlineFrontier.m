@@ -10,9 +10,11 @@ roiname(isspace(roiname)) = [];
 name = ['post_process_',roiname];
 
 % Define program iteration info
-td = cspice_str2et('1998 MAR 29 12:30:00.000 TDB'); % initial observation
+td = cspice_str2et('1998 MAR 29 12:00:00.000 TDB'); % initial observation ANNWN REGIO
+%td = cspice_str2et('1998 MAR 29 13:40:00.000 TDB'); % initial observation TARA REGIO
+
 % time
-N = 90; % number of iterations
+N = 150; % number of iterations
 mkspan = zeros(1, N); % initialize mkspan array
 coverage = zeros(1, N); % initialize coverage array
 overlap  = zeros(1, N); % initialize coverage array
@@ -39,5 +41,5 @@ for i=1:N
     nfp(i) = length(fplist);
     
     % Next iteration
-    td = td + step;    
+    td = td + step;
 end

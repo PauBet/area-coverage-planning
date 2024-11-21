@@ -123,6 +123,8 @@ while ~exit && t < endTime
         disp("FOV projection is larger than ROI surface")
         exit = true;
         continue 
+    elseif isempty(tour)
+        tour = {[fprintc.olon fprintc.olat]};
     end
     
     % Process each point of the tour if not in speedUp mode

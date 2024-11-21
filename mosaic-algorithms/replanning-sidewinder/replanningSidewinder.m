@@ -167,8 +167,21 @@ while t <= endTime && ~exit
 
         % If polygon is completely covered, break loop. Otherwise, update
         % roi
-        if isempty(poly1.Vertices), break;
-        else, roi = interppolygon(poly1.Vertices);
+        fprinti = fpList(end);
+        fparea = polyarea(fprinti.bvertices(:, 1), fprinti.bvertices(:, 2));
+
+        % Stop criteria for small uncovered areas (w.r.t. footprint)
+        if area(poly1)/fparea < 1e-4, break;
+        %if isempty(poly1.Vertices), break;
+        else
+            [vsbroi, ~, visibilityFlag] = visibleroi(poly1.Vertices, t, ...
+                target, sc); % polygon vertices of the visible area
+            if visibilityFlag
+                disp("ROI is not visible from the instrument");
+                return;
+            end
+            roi = interppolygon(vsbroi);
+            poly1.Vertices = roi;
         end
            
     else

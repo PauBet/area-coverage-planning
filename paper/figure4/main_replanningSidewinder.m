@@ -9,11 +9,14 @@ roiname(isspace(roiname)) = [];
 name = ['post_process_',roiname];
 
 % Define program iteration info
-td = cspice_str2et('1998 MAR 29 12:10:00.000 TDB'); % initial observation
+td = cspice_str2et('1998 MAR 29 12:00:00.000 TDB'); % initial observation ANNWN REGIO
+%td = cspice_str2et('1998 MAR 29 13:40:00.000 TDB'); % initial observation TARA REGIO
+
 % time
-N = 130; % number of iterations
+N = 150; % number of iterations
 mkspan = zeros(1, N); % initialize mkspan array
 coverage = zeros(1, N); % initialize coverage array
+overlap  = zeros(1, N); % initialize coverage array
 nfp = zeros(1, N); % initialize number of acquisitions array
 step = 30; % time step in [sec]
 
@@ -23,7 +26,7 @@ for i=1:N
     stoptime, tcadence, inst, sc, target, roi, olapx, olapy, 3*1e-3);
 
     % % Plot tour
-    % plotTour(A, fpList, roistruct, sc, target)
+    % plotTour(A, fplist, roistruct, sc, target)
     % title(roistruct(1).name)
     % leg = legend('NumColumns', 2, 'Location', 'north');
     % leg.String(end) = [];
