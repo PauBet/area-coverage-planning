@@ -6,7 +6,7 @@ function [next_target, target_fp, poly_target_footprint, neigh_indexes, rotmatri
     poly_target_footprint = [];
     fpcoverage = [];
 
-    min_area = 0.01;
+    min_area = 0.05;
     n = 1;
 
     for i = neigh_indexes

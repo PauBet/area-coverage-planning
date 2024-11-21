@@ -165,7 +165,7 @@ while s_area>s_area_zero*error_perc
 
         % If the actual footprint covers part of the real ROI save it and move
         % to the next instant
-        if fpcoverage >= 0.2
+        if fpcoverage >= 0.05
             fprintf('Adding %s FOV projection on %s at %s...\n', inst, ...
                 target_body, cspice_et2utc(time, 'C', 0));
             % Compute the remaining area after substracting the footprint to the
