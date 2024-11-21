@@ -31,7 +31,7 @@ end
 [gamma(1), gamma(2)] = centroid(polyshape(roi(:, 1), roi(:, 2)));
 fprintc = footprint(startTime, inst, sc, target_body, 'lowres', ...
     gamma(1), gamma(2), 1); % centroid footprint
-tour = planSidewinderTour(target_body, roi, sc, inst, startTime, olapx, olapy, fprintc.angle);
+tour = planSidewinderTour(target_body, roi, sc, inst, startTime, olapx, olapy);
 %[tour] = get_tour_first(startTime, inst, sc, ...
 %target_body, roi);
 
