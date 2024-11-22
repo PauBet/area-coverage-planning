@@ -178,7 +178,7 @@ while t <= endTime && ~exit
                 target, sc); % polygon vertices of the visible area
             if visibilityFlag
                 disp("ROI is not visible from the instrument");
-                return;
+                break;
             end
             roi = interppolygon(vsbroi);
             poly1.Vertices = roi;
