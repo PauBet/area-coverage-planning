@@ -1,4 +1,5 @@
 # Temp files & cache
 *.asv
 /obsolete/*
+/paper/benchmark/*
 # Specific directories

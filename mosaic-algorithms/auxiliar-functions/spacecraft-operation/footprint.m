@@ -83,7 +83,7 @@ end
 if isequal(res, 'lowres') % footprint vertices resolution
     N = 10; % number of intercept search per side
 elseif isequal(res, 'highres')
-    N = 500;
+    N = 100;
 else
     error("Invalid resolution method")
 end
@@ -398,11 +398,11 @@ footprint2map();
         [surfPoints(:,1), surfPoints(:,2), surfPoints(:,3)] = ...
             sortcw(surfPoints(:,1), surfPoints(:,2), surfPoints(:,3)); % sort
         % polygon boundary vertices in clockwise order (for representation)
-        for i=1:length(surfPoints)
-            [~, auxlon, auxlat] = cspice_reclat(surfPoints(i,:)'); % rectangular
+        for it=1:length(surfPoints)
+            [~, auxlon, auxlat] = cspice_reclat(surfPoints(it,:)'); % rectangular
             % to latitudinal coordinates
-            vertices(i, 1) = auxlon*cspice_dpr(); % longitude in [deg]
-            vertices(i, 2) = auxlat*cspice_dpr(); % latitude in [deg]
+            vertices(it, 1) = auxlon*cspice_dpr(); % longitude in [deg]
+            vertices(it, 2) = auxlat*cspice_dpr(); % latitude in [deg]
         end
         % Future work: surfPoints does not need to be saved, we could convert
         % from rectangular to latitudinal inside the first loop, instead of

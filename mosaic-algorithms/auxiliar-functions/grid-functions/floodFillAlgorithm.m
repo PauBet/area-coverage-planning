@@ -61,7 +61,7 @@ function [gridPoints, vPoints] = floodFillAlgorithm(w, h, olapx, olapy, gamma,..
 inside = false;
 ovlapx = olapx*w/100; ovlapy = olapy*h/100; % convert overlaps from 
 % percentage to degrees of latitude and longitude, respectively
-epsilon = 0.05;
+epsilon = 0.01;
 
 % Check if the cell has been previously visited
 for i=1:size(vPoints, 1)

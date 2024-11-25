@@ -53,10 +53,11 @@ function [ptime, A, fplist, s_area, poly_roi, flag] = add_time_step(time, fpcove
 % If the first footprint does not meet the minimum area
 ptime = time*ones(1,8);
 flag = 0;
+epsilon = 0.01;
 
 % If the actual footprint covers part of the real ROI save it and move
 % to the next instant               
-if fpcoverage >= 0.05
+if fpcoverage >= epsilon
     fprintf('Computing %s FOV projection on %s at %s...\n', inst, ...
     target_body, cspice_et2utc(time, 'C', 0));
     % Compute the remaining area after substracting the footprint to the

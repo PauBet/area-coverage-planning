@@ -172,16 +172,20 @@ while t <= endTime && ~exit
 
         % Stop criteria for small uncovered areas (w.r.t. footprint)
         if area(poly1)/fparea < 1e-4, break;
-        %if isempty(poly1.Vertices), break;
         else
-            [vsbroi, ~, visibilityFlag] = visibleroi(poly1.Vertices, t, ...
-                target, sc); % polygon vertices of the visible area
-            if visibilityFlag
-                disp("ROI is not visible from the instrument");
-                break;
+            if amIntercept 
+                roi = interppolygon(poly1.Vertices);
+                poly1.Vertices = roi;
+            else
+                [vsbroi, ~, visibilityFlag] = visibleroi(poly1.Vertices, t, ...
+                    target, sc); % polygon vertices of the visible area
+                if visibilityFlag
+                    disp("ROI is not visible from the instrument");
+                    break;
+                end
+                roi = interppolygon(vsbroi);
+                poly1.Vertices = roi;
             end
-            roi = interppolygon(vsbroi);
-            poly1.Vertices = roi;
         end
            
     else
