@@ -114,11 +114,11 @@ while ~exit && t < endTime
     
     % Discretize ROI area (grid) and plan Sidewinder tour based on a
     % Boustrophedon approach
-    tour = planSidewinderTour(target, roi, sc, inst, t, olapx, olapy);
+    tour = planSidewinderTour(target, roi, sc, inst, t, olapx, olapy, ...
+        fprintc.angle);
     
     % Handle cases where the FOV projection is larger than the ROI area
-    if length(tour) < 1
-        A{end+1} = gamma;
+    if length(tour) == 1
         fpList(end+1) = fprintc;
         disp("FOV projection is larger than ROI surface")
         exit = true;
@@ -128,20 +128,17 @@ while ~exit && t < endTime
     % Process each point of the tour if not in speedUp mode
     if ~speedUp
         while ~isempty(tour) && ~exit
-            [A, tour, fpList, poly1, t, flag] = processObservation(A, tour, ...
+            [A, tour, fpList, poly1, t] = processObservation(A, tour, ...
                 fpList, poly1, t, slewRate, tobs, amIntercept, inst, ...
                 sc, target, resolution);
 
             % Polygon completely covered
-            if ~flag
-                fprinti = fpList(end);
-                fparea = polyarea(fprinti.bvertices(:, 1), ...
-                    fprinti.bvertices(:, 2));
-
-                % Stop criteria for small uncovered areas (w.r.t. footprint)
-                if area(poly1)/fparea < 1e-4, exit = true; end
-                %if isempty(poly1.Vertices), exit = true; end
-            end
+            fprinti = fpList(end);
+            fparea = polyarea(fprinti.bvertices(:, 1), fprinti.bvertices(:, 2));
+            
+            % Stop criteria for small uncovered areas (w.r.t. footprint)
+            if area(poly1)/fparea < 1e-4, exit = true; end
+            %if isempty(poly1.Vertices), exit = true; end
         end
     end
     

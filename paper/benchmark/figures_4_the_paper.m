@@ -7,7 +7,7 @@ input_data;
 
 % Choose mosaic algorithm: 'sidewinder', 'r_sidewinder', 'onlinefrontier',
 % 'gridnibbler'
-tilealg = 'Online Frontier';
+tilealg = 'Local Grid Nibbler';
 
 % Coverage figure:
 % This figure plots the FOV footprint in a 2D topography map of the target 
@@ -78,7 +78,7 @@ for i=1:length(roistruct)
 
     % Get coverage, overlap and makespan
     [coverage(i), overlap(i)] = roicoverage(target, roi, fplist);
-    makespan(i) = fplist(end).t - fplist(1).t;
+    makespan(i) = fplist(end).t + tobs - fplist(1).t;
     nfp(i) = length(fplist);
 
     % Plot tour

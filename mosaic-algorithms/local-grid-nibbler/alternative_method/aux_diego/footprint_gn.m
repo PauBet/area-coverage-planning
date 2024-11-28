@@ -1,4 +1,4 @@
-function fp = footprint(t, inst, sc, target, res, varargin)
+function [fp, pointingRotation] = footprint_gn(t, inst, sc, target, res, varargin)
 % Given the spacecraft trajectory, this function computes the FOV
 % projection onto the body surface, i.e. the footprint. The spacecraft
 % orientation is determined by the lon, lat and theta angles.

@@ -62,7 +62,7 @@ else
     resolution = 'lowres';
 end
 
-% % Check ROI visible area from spacecraft
+% Check ROI visible area from spacecraft
 [vsbroi, ~, visibilityFlag] = visibleroi(inroi, startTime, target, sc); % polygon vertices of
 % the visible area
 if visibilityFlag
@@ -99,14 +99,14 @@ t = startTime;
 % Boolean that defines when to stop covering the target area
 exit = false;
 
-while ~exit
+while ~exit && t < endTime 
 
     % Initial 2D grid layout discretization: the instrument's FOV is going
     % to be projected onto the uncovered area's centroid and the resulting
     % footprint shape is used to set the grid spatial resolution
     [gamma(1), gamma(2)] = centroid(polyshape(roi(:,1),roi(:,2)));
     fprintc = footprint(t, inst, sc, target, resolution, ...
-        gamma(1), gamma(2), 0);   % centroid footprint;
+        gamma(1), gamma(2), 1);   % centroid footprint
     
     % Initialize struct that saves footprints (sub-structs)
     if t == startTime
@@ -119,52 +119,35 @@ while ~exit
     % Discretize ROI area (grid) and plan Sidewinder tour based on a
     % Boustrophedon approach
     [tour, grid, itour, grid_dirx, grid_diry, dir1, dir2] = ...
-        planSidewinderTour(target, roi, sc, inst, t, olapx, olapy);
+        planSidewinderTour(target, roi, sc, inst, t, olapx, olapy, fprintc.angle);
     grid = cellfun(@(c) c', grid, 'UniformOutput', false); % transpose elements
 
     % Handle cases where the FOV projection is larger than the ROI area
-    if length(tour) < 1
+    if length(tour) == 1
         A{end + 1} = gamma;
         fpList(end+1) = fprintc;
+        disp("FOV projection is larger than ROI surface")
         exit = true;
         continue
     end
 
     seed = itour{1};
-    while ~isempty(tour) && t < endTime
-
+    while ~isempty(tour)
         % Update origin and tour
         old_seed = seed;
         itour(1) = [];
-
+        
         % Process each point of the tour
         [A, tour, fpList, poly1, t] = processObservation(A, tour, ...
             fpList, poly1, t, slewRate, tobs, amIntercept, inst, sc, target, ...
             resolution);
 
-        % If polygon is completely covered, break loop. Otherwise, update
-        % roi
-        fprinti = fpList(end);
-        fparea = polyarea(fprinti.bvertices(:, 1), fprinti.bvertices(:, 2));
+        % If polygon is completely covered, break loop
+        if isempty(poly1.Vertices), break; end
 
-        % Stop criteria for small uncovered areas (w.r.t. footprint)
-        if area(poly1)/fparea < 1e-4, break;
-        else
-            if amIntercept 
-                roi = interppolygon(poly1.Vertices);
-                poly1.Vertices = roi;
-            else
-                [vsbroi, ~, visibilityFlag] = visibleroi(poly1.Vertices, t, ...
-                    target, sc); % polygon vertices of the visible area
-                if visibilityFlag
-                    disp("ROI is not visible from the instrument");
-                    break;
-                end
-                roi = interppolygon(vsbroi);
-                poly1.Vertices = roi;
-            end
-        end
-
+        % Update roi
+        roi = interppolygon(poly1.Vertices);
+        
         if isempty(tour)
             break;
         else
@@ -188,7 +171,6 @@ while ~exit
     exit = true;
 end
 clear updateGrid;
-clear checkTaboo;
 
 % OK message
 fprintf('Online Frontier successfully executed\n')
