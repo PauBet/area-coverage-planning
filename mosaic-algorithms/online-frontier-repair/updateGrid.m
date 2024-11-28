@@ -67,7 +67,7 @@ cout = {}; % set of disposable observations (inside or outside from 'tour')
 N    = {}; % set of new tiles (outside from 'tour')
 Nind = {}; % map indices of the new tiles
 X    = {}; % set of disposable tiles (inside of 'tour')
-epsilon = 0.2;
+epsilon = 0.01;
 
 % Build reference tile (it's always going to be the same in the subsequent
 % calls)
@@ -78,7 +78,9 @@ if isempty(fpref)
     % calculated in the first call
     [~, ~, ~, bounds] = ...
         cspice_getfov(cspice_bodn2c(inst), 4); % get fovbounds in the instrument's reference frame
-    [~, width, height, ~] = minimumWidthDirection(bounds(1, :), bounds(2, :));
+    maxx = max(bounds(1, :)); minx = min(bounds(1, :));
+    maxy = max(bounds(2, :)); miny = min(bounds(2, :));
+    width = maxx - minx; height = maxy - miny;
     fpref.width = width;
     fpref.height = height;
     xlimit = [-width/2 width/2]; ylimit = [-height/2 height/2];
@@ -119,7 +121,13 @@ targetpshape = polyshape(targetArea(:,1), targetArea(:,2)); % polyshape
 
 % Get grid shifting due to observation geometry update
 updated_seed = topo2inst(gamma, cx, cy, target, sc, inst, et);
-shift = updated_seed - seed;
+if ~isnan(updated_seed)
+    shift = updated_seed - seed;
+else
+    shift = 0;
+    updated_seed = seed;
+    disp("Non existent gamma");
+end
 seed = updated_seed;
 old_seed = old_seed + shift;
 
@@ -321,6 +329,13 @@ for i=2:numel(map)-1
         break;
     end
 end
+% Check that N is not coincident with old_seed...
+for i=1:length(N)
+    if norm(N{i} - old_seed) < 1e-5
+        N(i) = []; Nind(i) = [];
+        break;
+    end
+end
 [N, Nind] = checkTaboo(N, Nind, map, ind_row, ind_col, sweepDir1, sweepDir2);
 
 % Identify tiles to remove X = Cout - Tour
@@ -367,12 +382,40 @@ inst_tour = boustrophedon(inst_grid, sweepDir1, sweepDir2);
 
 % Rotate back grid points
 if ~isempty(inst_tour)
-    seed = inst_tour{1};
     topo_tour = inst2topo(inst_tour, cx, cy, target, sc, inst, et);
     % Remove empty elements from the tour, which may result from unobservable
     % regions within the planned plath
     emptyCells = cellfun(@isempty, topo_tour); % find indices of empty cells
+    indEmpty = find(emptyCells);
+    for k=1:length(indEmpty)
+        emptyEl = inst_tour{indEmpty(k)};
+        for i=1:size(map, 1)
+            for j=1:size(map, 2)
+                if ~isempty(map{i, j})
+                    if vecnorm(map{i, j} - emptyEl) < 1e-5
+                        map{i, j} = [];
+                    end
+                end
+            end
+        end
+    end
     topo_tour(emptyCells) = []; % remove empty cells
+    % Boustrophedon decomposition
+    inst_grid = map2grid(map);
+    inst_tour = boustrophedon(inst_grid, sweepDir1, sweepDir2);
+    if ~isempty(inst_tour)
+        seed = inst_tour{1};
+    else
+        seed = [];
+    end
+    %inst_tour(emptyCells) = []; % remove empty cells
+    %seed = inst_tour{1};
+    % for i=1:length(emptyCells)
+    %     if ~emptyCells(i)
+    %         seed = inst_tour{i};
+    %         break;
+    %     end
+    % end
 else
     seed = [];
     topo_tour = [];

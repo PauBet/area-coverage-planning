@@ -61,6 +61,7 @@ function [gridPoints, vPoints] = floodFillAlgorithm(w, h, olapx, olapy, gamma,..
 inside = false;
 ovlapx = olapx*w/100; ovlapy = olapy*h/100; % convert overlaps from 
 % percentage to degrees of latitude and longitude, respectively
+epsilon = 0.01;
 
 % Check if the cell has been previously visited
 for i=1:size(vPoints, 1)
@@ -93,7 +94,7 @@ end
 if inpolygon(gamma(1), gamma(2), targetArea(:,1), targetArea(:,2))
     inside = true;
 else
-    if abs(areaI - areaP)/area(fpshape) > 0.2
+    if abs(areaI - areaP)/area(fpshape) > epsilon
             inside = true;
     end
 end
@@ -109,7 +110,7 @@ if inside
     areaInter = areaT - areaI;
     fpArea = area(fpshape);
     
-    if areaInter/fpArea > 0.2
+    if areaInter/fpArea > epsilon
         gridPoints(end+1, :) = gamma;
         % pp = polyshape([gamma(1)-w/2, gamma(1)-w/2, gamma(1)+w/2, gamma(1) + w/2, gamma(1)-w/2],[gamma(2)+ h/2, gamma(2)- h/2, gamma(2)- h/2, gamma(2)+ h/2, gamma(2)+ h/2]);
         % plot(pp, 'FaceColor', [0.93,0.69,0.13], 'FaceAlpha', 0.2);

@@ -1,6 +1,6 @@
 % Representative examples of the approximation heuristics performance
 % July 2023
-clc; clear all; close all
+clc; clear all;
 
 % Load mission info (kernels, SPICE ids, etc.)
 input_data;

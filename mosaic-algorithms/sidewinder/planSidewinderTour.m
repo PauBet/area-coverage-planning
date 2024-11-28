@@ -1,5 +1,5 @@
 function [topo_tour, inst_grid, inst_tour, grid_dirx, grid_diry, sweepDir1, sweepDir2] = ...
-planSidewinderTour(target, roi, sc, inst, inittime, olapx, olapy, angle)
+planSidewinderTour(target, roi, sc, inst, inittime, olapx, olapy)
 % This function plans an observation tour using a modified Boustrophedon
 % decomposition method. It calculates an optimal path for observing a ROI
 % on a target body, considering the spacecraft's starting position.
@@ -28,10 +28,6 @@ planSidewinderTour(target, roi, sc, inst, inittime, olapx, olapy, angle)
 %                   in percentage (width)
 %   > olapy:        grid footprint overlap in the y direction (latitude),
 %                   in percentage (height)
-%   > angle:        observation angle, influencing the orientation of
-%                   observation footprints. In other words, it is the angle
-%                   that the footprint axes define with respect to the
-%                   reference axes of the topographical grid (east-north)
 % 
 % Outputs:
 %   > topo_tour:    tour path in topographical coordinates (lat/lon on the
@@ -55,29 +51,42 @@ origin = [0, 0]; % initialize grid origin for grid generation
 
 % Project ROI to the instrument plane
 targetArea = topo2inst(roi, cx, cy, target, sc, inst, inittime);
+[origin(1), origin(2)] = centroid(polyshape(targetArea));
 
-% Closest polygon side to the spacecraft's ground track position (this
-% will determine the coverage path)
-gt1 = groundtrack(sc, inittime, target); % initial ground track position
-gt2 = groundtrack(sc, inittime + 500, target); % future ground track position
-gt1 = topo2inst(gt1, cx, cy, target, sc, inst, inittime); % projected initial position
-gt2 = topo2inst(gt2, cx, cy, target, sc, inst, inittime + 500); % projected future position
-% Calculate the closest side of the target area to the spacecraft's ground 
-% track, determining the observation sweep direction
-[sweepDir1, sweepDir2] = closestSide(gt1, gt2, targetArea, angle);
+% Get minimum width direction of the footprint
+angle = minimumWidthDirection(targetArea(:, 1), targetArea(:, 2)); %observation 
+% angle, influencing the orientation of observation footprints and,
+% therefore, the coverage path orientation
 
 % Retrieve the field of view (FOV) bounds of the instrument and calculate 
 % the dimensions of a reference observation footprint
 [~, ~, ~, bounds] = ...
     cspice_getfov(cspice_bodn2c(inst), 4); % get fovbounds in the instrument's reference frame
-[~, width, height, ~] = minimumWidthDirection(bounds(1, :), bounds(2, :));
-fpref.width = width;
-fpref.height = height;
+maxx = max(bounds(1, :)); minx = min(bounds(1, :));
+maxy = max(bounds(2, :)); miny = min(bounds(2, :));
+fpref.width = maxx - minx;
+fpref.height = maxy - miny;
 fpref.angle = angle; % we enforce the orientation angle of the footprint 
 % to be that of its projection onto the topographical grid with respect to
 % the reference axes (east-north), given as an input. grid2D will use this
 % angle to orient the ROI according to this orientation
 % [Future work]: This angle could be given as an input to grid2D?
+
+%% [Check]: there is no need to compute the angle because the targetArea
+% projection already accounts for that
+if fpref.width <= fpref.height, angle = 0;
+else, angle = 0; end
+fpref.angle = angle;
+
+% Closest polygon side to the spacecraft's ground track position (this
+% will determine the coverage path)
+[gt1(1), gt1(2)] = groundtrack(sc, inittime, target); % initial ground track position
+[gt2(1), gt2(2)] = groundtrack(sc, inittime + 500, target); % future ground track position
+gt1 = topo2inst(gt1, cx, cy, target, sc, inst, inittime); % projected initial position
+gt2 = topo2inst(gt2, cx, cy, target, sc, inst, inittime + 500); % projected future position
+% Calculate the closest side of the target area to the spacecraft's ground 
+% track, determining the observation sweep direction
+[sweepDir1, sweepDir2] = closestSide(gt1, gt2, targetArea, angle);
 
 % Focal plane grid discretization based on the reference footprint (FOV
 % plane) and specified overlap

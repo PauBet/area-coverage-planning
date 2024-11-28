@@ -1,4 +1,4 @@
-function [N, Nind] = checkTaboo(N, Nind, map, ind_row, ind_col, dir1, dir2)
+function [N, Nind] = checkTaboo(N, Nind, map, ind_row, ind_col, indir1, indir2)
 % This function evaluates each tile in a list of potential observation 
 % points (N, Nind) and determines whether it should be considered taboo, 
 % i.e., unsuitable for selection based on its location relative to a specified
@@ -26,16 +26,32 @@ function [N, Nind] = checkTaboo(N, Nind, map, ind_row, ind_col, dir1, dir2)
 %
 % Outputs:
 %   > N, Nind:      updated lists
+% 
+
+persistent pdir1;
+persistent pdir2;
+if isempty(pdir1)
+    pdir1 = indir1;
+    pdir2 = indir2;
+end
+% % Previous checks...
+% if isempty(N) || isempty(Nind)
+%     return;
+% end
+
+% Pre-allocate variables
+nindel = [];
+grid = map2grid(map);
+[dir1, dir2] = boustrophedonMod(grid, indir1, indir2);
+dirChange = false;
+if ~isequal(pdir2, indir2)
+    dirChange = true;
+end
 
 % Previous checks...
 if isempty(N) || isempty(Nind)
     return;
 end
-
-% Pre-allocate variables
-nindel = [];
-grid = map2grid(map);
-[dir1, dir2] = boustrophedonMod(grid, dir1, dir2);
 
 % Define the grid boundaries (ending rows and columns in the map)
 for i=size(map, 1):-1:1
@@ -51,6 +67,24 @@ for i=size(map, 2):-1:1
     'UniformOutput', false)), 1); % get non-NaN elements in the map
     if ~isempty(el)
         Ncol = i;
+        break;
+    end
+end
+
+% Define the grid boundaries (starting rows and columns in the map)
+for i=1:size(map, 1)
+    el = find(~cell2mat(cellfun(@(x)any(isnan(x)), map(i, :), ...
+    'UniformOutput', false)), 1); % get non-NaN elements in the map
+    if ~isempty(el)
+        Orow = i;
+        break;
+    end
+end
+for i=1:size(map, 2)
+    el = find(~cell2mat(cellfun(@(x)any(isnan(x)), map(:, i), ...
+    'UniformOutput', false)), 1); % get non-NaN elements in the map
+    if ~isempty(el)
+        Ocol = i;
         break;
     end
 end
@@ -74,58 +108,49 @@ for i=1:length(Nind)
                 end
             end
 
-            if isequal(dir2, 'east') % tour is moving to the right (left -> right dir.)
-                if ind_col > 1
-                    if isequal(dir1, 'south') && indel(1) <= ind_row ...
-                            && indel(2) < ind_col
+            if isequal(dir2, 'west') % tour is moving to the right (left -> right dir.)
+                if indel(1) == ind_row && indel(2) > ind_col
+                    if dirChange && ind_col < Ncol
                         taboo = true;
-                    elseif isequal(dir1, 'north') && indel(1) >= ind_row ...
-                            && indel(2) < ind_col
+                    elseif ~dirChange
                         taboo = true;
                     end
                 end
             else % tour is moving to the left (right -> left dir.)
-                if ind_col < Ncol
-                    if isequal(dir1, 'south') && indel(1) <= ind_row && ...
-                            indel(2) > ind_col
+                if indel(1) == ind_row && indel(2) < ind_col 
+                    if dirChange && ind_col > Ocol
                         taboo = true;
-                    elseif isequal(dir1, 'north') && indel(1) >= ind_row ...
-                            && indel(2) > ind_col
+                    elseif ~dirChange
                         taboo = true;
                     end
-
                 end
             end
 
         case {'east', 'west'} % vertical sweep
 
             if strcmp(dir1, 'east')
-                if ind_col > 1 && indel(2) < ind_col
+                if indel(2) < ind_col
                     taboo = true;
                 end
             else
-                if ind_col < Ncol && indel(2) > ind_col
+                if indel(2) > ind_col
                     taboo = true;
                 end
             end
 
             if isequal(dir2, 'south') % downsweep = true. tour is moving to the bottom
-                if ind_row > 1
-                    if isequal(dir1, 'east') && indel(1) < ind_row && ...
-                            indel(2) <= ind_col
+                if indel(2) == ind_col && indel(1) < ind_row 
+                    if dirChange && ind_row > Orow
                         taboo = true;
-                    elseif isequal(dir1, 'west') && indel(1) < ind_row ...
-                            && indel(2) >= ind_col
+                    elseif ~dirChange
                         taboo = true;
                     end
                 end
             else % tour is moving to the top
-                if ind_row < Nrow
-                    if isequal(dir1, 'east') && indel(1) > ind_row && ...
-                            indel(2) <= ind_col
+                if indel(2) == ind_col && indel(1) > ind_row
+                    if dirChange && ind_row < Nrow
                         taboo = true;
-                    elseif isequal(dir1, 'west') && indel(1) > ind_row ...
-                            && indel(2) >= ind_col
+                    elseif ~dirChange 
                         taboo = true;
                     end
                 end

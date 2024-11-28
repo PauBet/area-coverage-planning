@@ -39,7 +39,7 @@ epsilon = 1e-2;
 [~, ~, R1, ~, ~] = instpointing(inst, target, sc, t, p1(1), p1(2));
 
 % Initial slew duration
-initSlew = 10;
+initSlew = 60;
 for i=1:maxit
     % Get final pointing matrix
     [~, ~, R2, ~, ~] = instpointing(inst, target, sc, t + tobs + initSlew, p2(1), p2(2));
