@@ -1,6 +1,6 @@
 % Representative examples of the approximation heuristics performance
 % July 2023
-clc; clear all;
+clc; clear all; close all;
 
 % Load mission info (kernels, SPICE ids, etc.)
 inputdata;
@@ -11,14 +11,7 @@ inputdata;
 ax = mapPlot('ganymede-map.jpg');
 
 %% Mosaic algorithms
-if videosave
-    v2 = VideoWriter('topography_map_sidewinder', 'MPEG-4');
-    v2.FrameRate = 2;
-    open(v2)
-    writeVideo(v2, getframe(gcf));
-else
-    v2 = [];
-end
+v2 = [];
 obsDic = dictionary();
 %     if abs(min(roi{i}(:, 1)) -  max(roi{i}(:, 1))) > 180
 %         xlim([175  180])
@@ -45,7 +38,7 @@ for i=1:length(roistruct)
     strname(i) = roistruct(i).name;
 
     [A, fplist] = frontierRepair(inittime, stoptime, ...
-        tobs, inst, sc, target, roi, olapx, olapy, slew_rate);
+        tobs, inst, sc, target, roi, olapx, olapy, slew_rate, 'highres');
 
     % Get coverage, overlap and makespan
     [coverage(i), overlap(i)] = roicoverage(target, roi, fplist);
@@ -55,12 +48,6 @@ for i=1:length(roistruct)
     % Plot tour
     plotTour_m(A, fplist, roistruct, target, ax);
     drawnow
-
-    % Re-plot the ROI (for aesthetic purposes)
-    if videosave
-        writeVideo(v2, getframe(gcf));
-        close(v2);
-    end
 end
 title(tilealg + " coverage map")
 % Save figure [PDF]
