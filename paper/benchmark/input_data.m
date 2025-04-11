@@ -69,7 +69,7 @@ roistruct(count).vertices = roi;
 [cx, cy] = centroid(polyshape(roi(:, 1), roi(:, 2)));
 roistruct(count).cpoint = [cx, cy];
 roistruct(count).name = "Annwn Regio";
-roistruct(count).inittime = cspice_str2et('1998 MAR 29 12:51:00.000 TDB'); % closest approach
+roistruct(count).inittime = cspice_str2et('1998 MAR 29 12:49:00.000 TDB'); % closest approach
 
 % Niamh
 count = count + 1;

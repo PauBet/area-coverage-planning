@@ -83,7 +83,7 @@ end
 if isequal(res, 'lowres') % footprint vertices resolution
     N = 10; % number of intercept search per side
 elseif isequal(res, 'highres')
-    N = 500;
+    N = 200;
 else
     error("Invalid resolution method")
 end

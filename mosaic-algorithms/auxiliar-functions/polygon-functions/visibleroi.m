@@ -38,7 +38,7 @@ end
 flag = false; % assume the target area is visible from the instrument
 method = 'TANGENT/ELLIPSOID';
 [~, targetframe, ~] = cspice_cnmfrm(target); % body-fixed frame
-abcorr = 'LT+S';
+abcorr = 'XLT+S';
 corloc = 'CENTER';
 refvec = [0; 0; 1]; % first of the sequence of cutting half-planes
 ncuts  = 1e3; % number of cutting half-planes
@@ -56,7 +56,18 @@ soltol = 1.0d-7; % solution convergence tolerance
 lblon = lblon*cspice_dpr;
 lblat = lblat*cspice_dpr;
 
-% Check for north/south pole
+% Check a.m. split
+ind2 = find(diff(sort(lblon)) >= 180, 1); % find the discontinuity
+if ~isempty(ind2)
+    [lblon, lblat] = amsplit(lblon', lblat');
+end
+
+% We need to discern between two different limb:
+% 1.- Sub-spacecraft point is located at equator (observer-to-pole line is
+% perpendicular to normal vector at the poles). In this case, limb's
+% longitude cannot be > 180º
+% 2.- Sub-spacecraft point is not located at equator. In this case, limb's
+% longitude may be > 180º (and includes the north/south poles).
 northpole = false;
 southpole = false;
 % Check north-pole:
@@ -73,7 +84,7 @@ if ~northpole && ~southpole
     % Check a.m. split
     ind2 = find(diff(sort(lblon)) >= 180, 1); % find the discontinuity
     if ~isempty(ind2)
-        [lblon, lblat] = amsplit(lblon', lblat');
+        [lblon, lblat] = amsplit(lblon, lblat);
     end
     % Check if we are keeping the correct polygon (full disk polygons may be
     % misleading, we can only guarantee through emission angle check)
@@ -84,7 +95,6 @@ if ~northpole && ~southpole
             angle = emissionang(randPoint, et, target, obs);
             if angle < 85
                 exit = 1;
-                poly1 = polyshape(lblon, lblat);
             end
         else
             angle = emissionang(randPoint, et, target, obs);
@@ -98,6 +108,8 @@ if ~northpole && ~southpole
                 polymap = polyshape(lonmap, latmap);
                 poly1 = polyshape(lblon, lblat);
                 poly1 = subtract(polymap, poly1);
+                lblon = poly1.Vertices(:, 1);
+                lblat = poly1.Vertices(:, 2);
             end
         end
     end
@@ -108,7 +120,7 @@ else
     if northpole || southpole
         % Include northpole to close polygon
         auxlon = lblon; auxlat = lblat;
-        lblon  = zeros(1, length(auxlon) + 2); 
+        lblon  = zeros(1, length(auxlon) + 2);
         lblat = zeros(1, length(auxlat) + 2);
         if northpole
             lblon(1) = -180; lblat(1) = 90;
@@ -119,10 +131,10 @@ else
         end
         lblon(2:length(lblon)-1) = auxlon; lblat(2:length(lblat)-1) = auxlat;
     end
-    poly1 = polyshape(lblon, lblat);
 end
 
 % roi and limb intersection
+poly1 = polyshape(lblon, lblat);
 poly2 = polyshape(roi(:, 1), roi(:, 2));
 inter = intersect(poly1, poly2);
 

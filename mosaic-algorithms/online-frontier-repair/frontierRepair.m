@@ -116,15 +116,6 @@ while ~exit
         end
     end
 
-    % Check roi visibility
-    [vsbroi, ~, visibilityFlag] = visibleroi(roi, t, target, sc);
-    if visibilityFlag
-        disp("ROI no longer reachable");
-        break;
-    else
-        roi = interppolygon(vsbroi);
-    end
-
     % Discretize ROI area (grid) and plan Sidewinder tour based on a
     % Boustrophedon approach
     [tour, grid, itour, grid_dirx, grid_diry, dir1, dir2] = ...
@@ -151,21 +142,29 @@ while ~exit
             fpList, poly1, t, slewRate, tobs, amIntercept, inst, sc, target, ...
             resolution);
 
-        % If polygon is completely covered, break loop
-        if isempty(poly1.Vertices), break; end
+        % If polygon is completely covered, break loop. Otherwise, update
+        % roi
+        fprinti = fpList(end);
+        fparea = polyarea(fprinti.bvertices(:, 1), fprinti.bvertices(:, 2));
 
-        % Update roi
-        roi = poly1.Vertices;
-
-        % Check roi visibility
-        [vsbroi, ~, visibilityFlag] = visibleroi(roi, t, target, sc);
-        if visibilityFlag 
-            disp("ROI no longer reachable");
-            break;
+        % Stop criteria for small uncovered areas (w.r.t. footprint)
+        if area(poly1)/fparea < 1e-4, break;
         else
-            roi = interppolygon(vsbroi);
+            if amIntercept 
+                roi = interppolygon(poly1.Vertices);
+                poly1.Vertices = roi;
+            else
+                [vsbroi, ~, visibilityFlag] = visibleroi(poly1.Vertices, t, ...
+                    target, sc); % polygon vertices of the visible area
+                if visibilityFlag
+                    disp("ROI is not visible from the instrument");
+                    break;
+                end
+                roi = interppolygon(vsbroi);
+                poly1.Vertices = roi;
+            end
         end
-        
+
         if isempty(tour)
             break;
         else

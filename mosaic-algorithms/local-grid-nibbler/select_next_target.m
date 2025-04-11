@@ -43,7 +43,7 @@ function [next_target, target_fp, poly_target_footprint, neigh_indexes, rotmatri
     
     % Define a minimum acceptable coverage area (less that the value
     % required for adding it to the final list).
-    min_area = 0.01;
+    min_area = 0.05;
 
     n = 1;
 

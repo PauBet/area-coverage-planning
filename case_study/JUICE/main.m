@@ -1,28 +1,17 @@
 % Representative examples of the approximation heuristics performance
 % July 2023
-clc; clear all;
+clc; clear all; close all;
 
 % Load mission info (kernels, SPICE ids, etc.)
-input_data;
-
-% Choose mosaic algorithm: 'sidewinder', 'r_sidewinder', 'onlinefrontier',
-% 'gridnibbler'
-tilealg = 'Local Grid Nibbler';
+inputdata;
 
 % Coverage figure:
 % This figure plots the FOV footprint in a 2D topography map of the target 
 % body. This can only be enabled for convex planetary bodies
-ax = mapPlot('europa-map.jpg');
+ax = mapPlot('ganymede-map.jpg');
 
 %% Mosaic algorithms
-if videosave
-    v2 = VideoWriter('topography_map_sidewinder', 'MPEG-4');
-    v2.FrameRate = 2;
-    open(v2)
-    writeVideo(v2, getframe(gcf));
-else
-    v2 = [];
-end
+v2 = [];
 obsDic = dictionary();
 %     if abs(min(roi{i}(:, 1)) -  max(roi{i}(:, 1))) > 180
 %         xlim([175  180])
@@ -48,33 +37,8 @@ for i=1:length(roistruct)
     inittime = roistruct(i).inittime;
     strname(i) = roistruct(i).name;
 
-    switch tilealg
-        case 'Sidewinder'
-            tic
-            [A, fplist] = sidewinder(inittime, stoptime, tobs, ...
-                inst, sc, target, roi, olapx, olapy, slew_rate, 0);
-            t(i) = toc;
-
-        case 'Replanning Sidewinder'
-            tic
-            [A, fplist] = replanningSidewinder(inittime, ...
-                stoptime, tobs, inst, sc, target, roi, olapx, olapy, ...
-                slew_rate);
-             t(i) = toc;
-
-        case 'Online Frontier'
-            tic
-            [A, fplist] = frontierRepair(inittime, stoptime, ...
-                tobs, inst, sc, target, roi, olapx, olapy, slew_rate);
-            t(i) = toc;
-
-
-        case 'Local Grid Nibbler'
-            tic
-            [A, fplist, count(i)] = neighbour_placement_2(inittime, tobs, inst, sc, ...
-                             target, roi, olapx, olapy, slew_rate);
-            t(i) = toc;
-    end
+    [A, fplist] = frontierRepair(inittime, stoptime, ...
+        tobs, inst, sc, target, roi, olapx, olapy, slew_rate, 'highres');
 
     % Get coverage, overlap and makespan
     [coverage(i), overlap(i)] = roicoverage(target, roi, fplist);
@@ -84,12 +48,6 @@ for i=1:length(roistruct)
     % Plot tour
     plotTour_m(A, fplist, roistruct, target, ax);
     drawnow
-
-    % Re-plot the ROI (for aesthetic purposes)
-    if videosave
-        writeVideo(v2, getframe(gcf));
-        close(v2);
-    end
 end
 title(tilealg + " coverage map")
 % Save figure [PDF]

@@ -1,4 +1,4 @@
-function [ptime, A, fplist, s_area, poly_roi] = add_time_step(time, fpcoverage, poly_roi, poly_target_footprint, A, fplist, target, target_fp, neighbours, neigh_indexes, tobs, inst, target_body, sc, slewRate)
+function [ptime, A, fplist, s_area, poly_roi, flag] = add_time_step(time, fpcoverage, poly_roi, poly_target_footprint, A, fplist, target, target_fp, neighbours, neigh_indexes, tobs, inst, target_body, sc, slewRate)
 
 % This function checks if the first target provides enough coverage of the ROI, if
 % TRUE it add the target to the output lists A and fplist, and adds a
@@ -52,10 +52,14 @@ function [ptime, A, fplist, s_area, poly_roi] = add_time_step(time, fpcoverage, 
 
 % If the first footprint does not meet the minimum area
 ptime = time*ones(1,8);
+flag = 0;
+epsilon = 0.01;
 
 % If the actual footprint covers part of the real ROI save it and move
 % to the next instant               
-if fpcoverage >= 0.2
+if fpcoverage >= epsilon
+    fprintf('Computing %s FOV projection on %s at %s...\n', inst, ...
+    target_body, cspice_et2utc(time, 'C', 0));
     % Compute the remaining area after substracting the footprint to the
     % ROI
     poly_roi = subtract(poly_roi,poly_target_footprint);
@@ -64,9 +68,12 @@ if fpcoverage >= 0.2
     A{end+1} = [target(1), target(2)];
     fplist(end + 1) = target_fp;
     % Possible update times based on neighbours
-    for i = neigh_indexes
+    %for i = neigh_indexes
+    for i=1:length(neighbours)
         ptime(i) = time + tobs + slewDur(target, neighbours(i,:), time, tobs, inst, target_body, sc, slewRate);
     end
 else
+    flag = 1;
     s_area = area(poly_roi);
+end
 end

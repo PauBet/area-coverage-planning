@@ -63,7 +63,9 @@ if isempty(fpref)
     [~, width, height, ~] = minimumWidthDirection(bounds(1, :), bounds(2, :));
     fpref.width = width;
     fpref.height = height;
-    fpref.angle = angle;
+    %% [Check]: there is no need to compute the angle because the targetArea
+    % projection already accounts for that
+    fpref.angle = 0;
 end
 
 % Intersect ROI with focal plane
@@ -75,10 +77,13 @@ origin = topo2inst(origin_topo, cx, cy, target, sc, inst, et);
 if isempty(sweepDir1)
     % Closest polygon side to the spacecraft's ground track position (this
     % will determine the coverage path)
-    gt1 = groundtrack(sc, et, target);
-    gt2 = groundtrack(sc, et + 500, target);
+    [gt1(1), gt1(2)] = groundtrack(sc, et, target);
+    [gt2(1), gt2(2)] = groundtrack(sc, et + 500, target);
     gt1 = topo2inst(gt1, cx, cy, target, sc, inst, et);
     gt2 = topo2inst(gt2, cx, cy, target, sc, inst, et + 500);
+    %% [Check]: there is no need to compute the angle because the targetArea
+    % projection already accounts for that
+    angle = 0;
     [sweepDir1, sweepDir2] = closestSide(gt1, gt2, targetArea, angle);
 end
 

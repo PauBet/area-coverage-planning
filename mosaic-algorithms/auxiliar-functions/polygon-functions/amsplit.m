@@ -79,27 +79,4 @@ xf(end + 1:(length(xf) + length(poly2(:, 1)))) = poly2(:, 1);
 yf = poly1(:, 2);
 yf(end + 1) = NaN;
 yf(end + 1:(length(yf) + length(poly2(:, 2)))) = poly2(:, 2);
-
-% [Future work]: Consider polygons that are split by the a.m. but also are
-% discontinuous in latitude (i.e., more than two polygons)
-% yi = sort(yi, 'descend');
-% if length(xi)/2 > 1
-%     for j=1:length(yi)
-%         % Get inner intersections
-%         if yi(j) > min(yi) && yi(j) < max(yi)
-%             % To determine whether the intersection should included in the left or
-%             % right sides of the a.m. we need to check the immediately upper and
-%             % lower points
-%             poly3 = polyshape();
-%             if inpolygon(180, yi(j) + 1, poly2(:, 1), poly2(:, 2))
-%                 % Split poly1
-%                 ind = x >= 180 && y >= yi(j);%poly1(:, 2) >= yi(j);
-%                 [spoly1(:, 1), spoly1(:, 2)] = sortcw(poly1(ind, 1), poly1(ind, 2));
-%                 poly3 = addboundary(poly3, spoly2);
-%             else
-%                 % Split poly2
-%             end
-%         end
-%     end
-% end
 end
